@@ -27,7 +27,11 @@ interface TopBarAPI {
   tabRunJs: (tabId: string, code: string) => Promise<any>;
 
   // Sidebar
-  toggleSidebar: () => Promise<void>;
+  toggleSidebar: () => Promise<boolean>;
+  getSidebarVisibility: () => Promise<boolean>;
+  onSidebarVisibilityChanged: (
+    callback: (isVisible: boolean) => void
+  ) => () => void;
 }
 
 declare global {
@@ -36,4 +40,3 @@ declare global {
     topBarAPI: TopBarAPI;
   }
 }
-

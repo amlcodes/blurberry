@@ -190,7 +190,7 @@ const ChatInput: React.FC<{
     return (
         <div className={cn(
             "w-full border p-3 rounded-3xl bg-background dark:bg-secondary",
-            "shadow-chat animate-spring-scale outline-none transition-all duration-200",
+            "shadow-chat animate-spring-scale outline-hidden transition-all duration-200",
             isFocused ? "border-primary/20 dark:border-primary/30" : "border-border"
         )}>
             {/* Input Area */}
@@ -205,7 +205,7 @@ const ChatInput: React.FC<{
                             onBlur={() => setIsFocused(false)}
                             onKeyDown={handleKeyDown}
                             placeholder="Send a message..."
-                            className="w-full resize-none outline-none bg-transparent 
+                            className="w-full resize-none outline-hidden bg-transparent 
                                      text-foreground placeholder:text-muted-foreground
                                      min-h-[24px] max-h-[200px]"
                             rows={1}

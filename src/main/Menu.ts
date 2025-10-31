@@ -129,6 +129,12 @@ export class AppMenu {
   private handleToggleSidebar(): void {
     this.mainWindow.sidebar.toggle();
     this.mainWindow.updateAllBounds();
+    // Notify TopBar of sidebar visibility change
+    const isVisible = this.mainWindow.sidebar.getIsVisible();
+    this.mainWindow.topBar.view.webContents.send(
+      "sidebar-visibility-changed",
+      isVisible
+    );
   }
 
   private handleToggleDevTools(): void {

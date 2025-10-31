@@ -30,7 +30,7 @@ const TabItem: React.FC<TabItemProps> = ({
         isActive
             ? "bg-background shadow-tab dark:bg-secondary dark:shadow-none"
             : "bg-transparent hover:bg-muted/50 dark:hover:bg-muted/30",
-        isPinned ? "w-8 !px-0 justify-center" : ""
+        isPinned ? "w-8 px-0! justify-center" : ""
     )
 
     return (
@@ -59,7 +59,7 @@ const TabItem: React.FC<TabItemProps> = ({
                             onClose()
                         }}
                         className={cn(
-                            "flex-shrink-0 p-1 rounded-md transition-opacity",
+                            "shrink-0 p-1 rounded-md transition-opacity",
                             "hover:bg-muted dark:hover:bg-muted/50",
                             "opacity-0 group-hover/tab:opacity-100",
                             isActive && "opacity-100"

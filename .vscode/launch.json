@@ -1,0 +1,161 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Web: Fullstack Arc",
+			"type": "node-terminal",
+			"cwd": "${workspaceFolder}/apps/web",
+			"envFile": "${workspaceFolder}/.env",
+			"request": "launch",
+			"command": "pnpm run dev",
+			"sourceMaps": true,
+			"serverReadyAction": {
+				"pattern": "- Local:.+(https?://.+)",
+				"uriFormat": "%s",
+				"action": "openExternally"
+			}
+		},
+		{
+			"type": "msedge",
+			"name": "Web: Microsoft Edge",
+			"request": "launch",
+			"cwd": "${workspaceFolder}/apps/web",
+			"runtimeArgs": ["--remote-debugging-port=9222"],
+			"url": "http://localhost:3000",
+			"sourceMaps": true,
+			"presentation": {
+				"hidden": true
+			}
+		},
+		{
+			"name": "Web: Server Side",
+			"type": "node-terminal",
+			"cwd": "${workspaceFolder}/apps/web",
+			"envFile": "${workspaceFolder}/.env",
+			"request": "launch",
+			"command": "pnpm run dev",
+			"sourceMaps": true,
+			"presentation": {
+				"hidden": true
+			}
+		},
+		{
+			"name": "Web: Edge headless",
+			"type": "msedge",
+			"request": "launch",
+			"runtimeArgs": ["--headless", "--remote-debugging-port=9222"],
+			"url": "http://localhost:3000",
+			"presentation": {
+				"hidden": true
+			},
+			"sourceMaps": true
+		},
+		{
+			"type": "vscode-edge-devtools.debug",
+			"name": "Web: Open Edge DevTools",
+			"request": "attach",
+			"url": "http://localhost:3000",
+			"sourceMaps": true,
+			"presentation": {
+				"hidden": true
+			}
+		},
+		{
+			"name": "Sanity: Arc",
+			"type": "node-terminal",
+			"cwd": "${workspaceFolder}/apps/sanity",
+			"envFile": "${workspaceFolder}/apps/sanity/.env",
+			"request": "launch",
+			"command": "pnpm run dev",
+			"sourceMaps": true,
+			"serverReadyAction": {
+				"pattern": "- Local:.+(https?://.+)",
+				"uriFormat": "%s",
+				"action": "openExternally"
+			},
+			"presentation": {
+				"hidden": true
+			}
+		},
+		{
+			"name": "Sanity: Server Side",
+			"type": "node-terminal",
+			"cwd": "${workspaceFolder}/apps/sanity",
+			"envFile": "${workspaceFolder}/.env",
+			"request": "launch",
+			"command": "pnpm run dev",
+			"sourceMaps": true,
+			"presentation": {
+				"hidden": true
+			}
+		},
+		{
+			"type": "msedge",
+			"name": "Sanity: Microsoft Edge",
+			"request": "launch",
+			"cwd": "${workspaceFolder}/apps/web",
+			"runtimeArgs": ["--remote-debugging-port=9222"],
+			"url": "http://localhost:3333",
+			"sourceMaps": true,
+			"presentation": {
+				"hidden": true
+			}
+		},
+		{
+			"name": "Sanity: Edge headless",
+			"type": "msedge",
+			"request": "launch",
+			"runtimeArgs": ["--headless", "--remote-debugging-port=9222"],
+			"url": "http://localhost:3333",
+			"presentation": {
+				"hidden": true
+			},
+			"sourceMaps": true
+		},
+		{
+			"type": "msedge",
+			"name": "Sanity: Microsoft Edge",
+			"request": "launch",
+			"cwd": "${workspaceFolder}/apps/web",
+			"runtimeArgs": ["--remote-debugging-port=9222"],
+			"url": "http://localhost:3333",
+			"presentation": {
+				"hidden": true
+			},
+			"sourceMaps": true
+		},
+		{
+			"type": "vscode-edge-devtools.debug",
+			"name": "Sanity: Open Edge DevTools",
+			"request": "attach",
+			"url": "http://localhost:3333",
+			"sourceMaps": true,
+			"presentation": {
+				"hidden": true
+			}
+		}
+	],
+	"compounds": [
+		{
+			"name": "Sanity: Fullstack Arc",
+			"configurations": ["Sanity: Arc", "Web: Server Side"]
+		},
+		{
+			"name": "Sanity: Fullstack Edge IDE",
+			"configurations": [
+				"Sanity: Server Side",
+				"Sanity: Edge headless",
+				"Web: Server Side",
+				"Sanity: Open Edge DevTools"
+			]
+		},
+		{
+			"name": "Web: Fullstack Edge IDE",
+			"configurations": [
+				"Web: Edge headless",
+				"Web: Server Side",
+				"Web: Open Edge DevTools"
+			]
+		}
+	]
+}

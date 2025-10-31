@@ -2,12 +2,12 @@ import { WebContents } from "electron";
 import { streamText, type LanguageModel, type CoreMessage } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
-import * as dotenv from "dotenv";
-import { join } from "path";
+// import * as dotenv from "dotenv";
+// import { join } from "path";
 import type { Window } from "./Window";
 
 // Load environment variables from .env file
-dotenv.config({ path: join(__dirname, "../../.env") });
+// dotenv.config({ path: join(__dirname, "../../.env") });
 
 interface ChatRequest {
   message: string;
@@ -96,7 +96,7 @@ export class LLMClient {
         this.provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY";
       console.error(
         `❌ LLM Client initialization failed: ${keyName} not found in environment variables.\n` +
-          `Please add your API key to the .env file in the project root.`
+          `Please add your API key to the .env.local file in the project root.`
       );
     }
   }

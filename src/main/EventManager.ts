@@ -154,7 +154,18 @@ export class EventManager {
     ipcMain.handle("toggle-sidebar", () => {
       this.mainWindow.sidebar.toggle();
       this.mainWindow.updateAllBounds();
-      return true;
+      // Notify TopBar of sidebar visibility change
+      const isVisible = this.mainWindow.sidebar.getIsVisible();
+      this.mainWindow.topBar.view.webContents.send(
+        "sidebar-visibility-changed",
+        isVisible
+      );
+      return isVisible;
+    });
+
+    // Get sidebar visibility state
+    ipcMain.handle("get-sidebar-visibility", () => {
+      return this.mainWindow.sidebar.getIsVisible();
     });
 
     // Chat message
