@@ -1,5 +1,5 @@
-import { contextBridge } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
+import { contextBridge } from "electron";
 
 // TopBar specific APIs
 const topBarAPI = {
@@ -29,13 +29,13 @@ const topBarAPI = {
     electronAPI.ipcRenderer.invoke("tab-run-js", tabId, code),
 
   // Sidebar
-  toggleSidebar: () =>
-    electronAPI.ipcRenderer.invoke("toggle-sidebar"),
+  toggleSidebar: () => electronAPI.ipcRenderer.invoke("toggle-sidebar"),
   getSidebarVisibility: () =>
     electronAPI.ipcRenderer.invoke("get-sidebar-visibility"),
   onSidebarVisibilityChanged: (callback: (isVisible: boolean) => void) => {
-    electronAPI.ipcRenderer.on("sidebar-visibility-changed", (_, isVisible: boolean) =>
-      callback(isVisible)
+    electronAPI.ipcRenderer.on(
+      "sidebar-visibility-changed",
+      (_, isVisible: boolean) => callback(isVisible),
     );
     // Return cleanup function
     return () => {
@@ -55,9 +55,6 @@ if (process.contextIsolated) {
     console.error(error);
   }
 } else {
-  // @ts-ignore (define in dts)
   window.electron = electronAPI;
-  // @ts-ignore (define in dts)
   window.topBarAPI = topBarAPI;
 }
-

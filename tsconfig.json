@@ -5,6 +5,7 @@
     { "path": "./tsconfig.web.json" }
   ],
   "compilerOptions": {
-    "moduleResolution": "Bundler"
+    "moduleResolution": "bundler",
+    "module": "esnext"
   }
 }

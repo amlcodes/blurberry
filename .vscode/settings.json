@@ -6,6 +6,8 @@
   "emmet.showExpandedAbbreviation": "never",
   "editor.codeActionsOnSave": {
     "source.fixAll.prettier": "explicit",
-    "source.organizeImports.prettier": "explicit"
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit",
+    "quickfix.eslint": "explicit"
   }
 }

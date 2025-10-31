@@ -133,7 +133,7 @@ export class AppMenu {
     const isVisible = this.mainWindow.sidebar.getIsVisible();
     this.mainWindow.topBar.view.webContents.send(
       "sidebar-visibility-changed",
-      isVisible
+      isVisible,
     );
   }
 

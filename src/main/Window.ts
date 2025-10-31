@@ -1,7 +1,7 @@
 import { BaseWindow, shell } from "electron";
+import { SideBar } from "./SideBar";
 import { Tab } from "./Tab";
 import { TopBar } from "./TopBar";
-import { SideBar } from "./SideBar";
 
 export class Window {
   private _baseWindow: BaseWindow;
@@ -52,7 +52,7 @@ export class Window {
     // Handle external link opening
     this.tabsMap.forEach((tab) => {
       tab.webContents.setWindowOpenHandler((details) => {
-        shell.openExternal(details.url);
+        void shell.openExternal(details.url);
         return { action: "deny" };
       });
     });

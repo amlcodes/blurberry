@@ -1,16 +1,14 @@
-import { ElectronAPI } from "@electron-toolkit/preload";
-
-interface TabInfo {
+export interface TabInfo {
   id: string;
   title: string;
   url: string;
   isActive: boolean;
 }
 
-interface TopBarAPI {
+export interface TopBarAPI {
   // Tab management
   createTab: (
-    url?: string
+    url?: string,
   ) => Promise<{ id: string; title: string; url: string } | null>;
   closeTab: (tabId: string) => Promise<boolean>;
   switchTab: (tabId: string) => Promise<boolean>;
@@ -30,13 +28,6 @@ interface TopBarAPI {
   toggleSidebar: () => Promise<boolean>;
   getSidebarVisibility: () => Promise<boolean>;
   onSidebarVisibilityChanged: (
-    callback: (isVisible: boolean) => void
+    callback: (isVisible: boolean) => void,
   ) => () => void;
-}
-
-declare global {
-  interface Window {
-    electron: ElectronAPI;
-    topBarAPI: TopBarAPI;
-  }
 }

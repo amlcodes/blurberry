@@ -1,15 +1,6 @@
-import { contextBridge } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
-
-interface ChatRequest {
-  message: string;
-  context: {
-    url: string | null;
-    content: string | null;
-    text: string | null;
-  };
-  messageId: string;
-}
+import { contextBridge } from "electron";
+import type { ChatRequest } from "./sidebar.d";
 
 interface ChatResponse {
   messageId: string;
@@ -33,7 +24,7 @@ const sidebarAPI = {
 
   onMessagesUpdated: (callback: (messages: any[]) => void) => {
     electronAPI.ipcRenderer.on("chat-messages-updated", (_, messages) =>
-      callback(messages)
+      callback(messages),
     );
   },
 
@@ -65,8 +56,6 @@ if (process.contextIsolated) {
     console.error(error);
   }
 } else {
-  // @ts-ignore (define in dts)
   window.electron = electronAPI;
-  // @ts-ignore (define in dts)
   window.sidebarAPI = sidebarAPI;
 }
