@@ -1,13 +1,7 @@
 import { Button } from "@common/components/Button";
 import { cn } from "@common/lib/utils";
 import { ArrowUp, Plus } from "lucide-react";
-import React, {
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
@@ -22,7 +16,9 @@ interface Message {
 }
 
 // Auto-scroll hook
-const useAutoScroll = (messages: Message[]) => {
+const useAutoScroll = (
+  messages: Message[],
+): React.RefObject<HTMLDivElement | null> => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevCount = useRef(0);
 
@@ -42,7 +38,7 @@ const useAutoScroll = (messages: Message[]) => {
 };
 
 // User Message Component - appears on the right
-const UserMessage: React.FC<{ content: string }> = React.memo(({ content }) => (
+const UserMessage: React.FC<{ content: string }> = ({ content }) => (
   <div className="relative max-w-[85%] ml-auto animate-fade-in">
     <div className="bg-muted dark:bg-muted/50 rounded-3xl px-6 py-4">
       <div className="text-foreground" style={{ whiteSpace: "pre-wrap" }}>
@@ -50,31 +46,22 @@ const UserMessage: React.FC<{ content: string }> = React.memo(({ content }) => (
       </div>
     </div>
   </div>
-));
+);
 
 // Streaming Text Component
 const StreamingText: React.FC<{ content: string }> = ({ content }) => {
   const [displayedContent, setDisplayedContent] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Reset animation when content changes
   useEffect(() => {
-    setDisplayedContent("");
-    setCurrentIndex(0);
-  }, [content]);
-
-  // Animate the text streaming
-  useEffect(() => {
-    if (currentIndex >= content.length) {
-      return; // No cleanup needed when animation is complete
+    if (currentIndex < content.length) {
+      const timer = setTimeout(() => {
+        setDisplayedContent(content.slice(0, currentIndex + 1));
+        setCurrentIndex(currentIndex + 1);
+      }, 10);
+      return () => clearTimeout(timer);
     }
-
-    const timer = setTimeout(() => {
-      setDisplayedContent(content.slice(0, currentIndex + 1));
-      setCurrentIndex(currentIndex + 1);
-    }, 10);
-
-    return () => clearTimeout(timer);
+    return undefined;
   }, [content, currentIndex]);
 
   return (
@@ -88,7 +75,7 @@ const StreamingText: React.FC<{ content: string }> = ({ content }) => {
 };
 
 // Markdown Renderer Component
-const Markdown: React.FC<{ content: string }> = React.memo(({ content }) => (
+const Markdown: React.FC<{ content: string }> = ({ content }) => (
   <div
     className="prose prose-sm dark:prose-invert max-w-none 
                     prose-headings:text-foreground prose-p:text-foreground 
@@ -104,7 +91,7 @@ const Markdown: React.FC<{ content: string }> = React.memo(({ content }) => (
       remarkPlugins={[remarkGfm, remarkBreaks]}
       components={{
         // Custom code block styling
-        code: ({ node, className, children, ...props }) => {
+        code: ({ className, children, ...props }) => {
           const inline = !className;
           return inline ? (
             <code
@@ -135,13 +122,13 @@ const Markdown: React.FC<{ content: string }> = React.memo(({ content }) => (
       {content}
     </ReactMarkdown>
   </div>
-));
+);
 
 // Assistant Message Component - appears on the left
 const AssistantMessage: React.FC<{
   content: string;
   isStreaming?: boolean;
-}> = React.memo(({ content, isStreaming }) => (
+}> = ({ content, isStreaming }) => (
   <div className="relative w-full animate-fade-in">
     <div className="py-1">
       {isStreaming ? (
@@ -151,26 +138,11 @@ const AssistantMessage: React.FC<{
       )}
     </div>
   </div>
-));
+);
 
 // Loading Indicator with spinning star
 const LoadingIndicator: React.FC = () => {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    setIsVisible(true);
-  }, []);
-
-  return (
-    <div
-      className={cn(
-        "transition-transform duration-300 ease-in-out",
-        isVisible ? "scale-100" : "scale-0",
-      )}
-    >
-      ...
-    </div>
-  );
+  return <div className="animate-spring-scale">...</div>;
 };
 
 // Chat Input Component with pill design
@@ -192,7 +164,7 @@ const ChatInput: React.FC<{
     }
   }, [value]);
 
-  const handleSubmit = () => {
+  const handleSubmit = (): void => {
     if (value.trim() && !disabled) {
       onSend(value.trim());
       setValue("");
@@ -203,7 +175,7 @@ const ChatInput: React.FC<{
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent): void => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -214,7 +186,7 @@ const ChatInput: React.FC<{
     <div
       className={cn(
         "w-full border p-3 rounded-3xl bg-background dark:bg-secondary",
-        "shadow-chat animate-spring-scale outline-hidden transition-all duration-200",
+        "shadow-chat animate-spring-scale outline-none transition-all duration-200",
         isFocused
           ? "border-primary/20 dark:border-primary/30"
           : "border-border",
@@ -232,7 +204,7 @@ const ChatInput: React.FC<{
               onBlur={() => setIsFocused(false)}
               onKeyDown={handleKeyDown}
               placeholder="Send a message..."
-              className="w-full resize-none outline-hidden bg-transparent 
+              className="w-full resize-none outline-none bg-transparent 
                                      text-foreground placeholder:text-muted-foreground
                                      min-h-[24px] max-h-[200px]"
               rows={1}
@@ -271,7 +243,7 @@ interface ConversationTurn {
 const ConversationTurnComponent: React.FC<{
   turn: ConversationTurn;
   isLoading?: boolean;
-}> = React.memo(({ turn, isLoading }) => (
+}> = ({ turn, isLoading }) => (
   <div className="pt-12 flex flex-col gap-8">
     {turn.user && <UserMessage content={turn.user.content} />}
     {turn.assistant && (
@@ -286,34 +258,31 @@ const ConversationTurnComponent: React.FC<{
       </div>
     )}
   </div>
-));
+);
 
 // Main Chat Component
 export const Chat: React.FC = () => {
   const { messages, isLoading, sendMessage, clearChat } = useChat();
   const scrollRef = useAutoScroll(messages);
 
-  // Group messages into conversation turns - memoized for performance
-  const conversationTurns = useMemo(() => {
-    const turns: ConversationTurn[] = [];
-    for (let i = 0; i < messages.length; i++) {
-      if (messages[i].role === "user") {
-        const turn: ConversationTurn = { user: messages[i] };
-        if (messages[i + 1]?.role === "assistant") {
-          turn.assistant = messages[i + 1];
-          i++; // Skip next message since we've paired it
-        }
-        turns.push(turn);
-      } else if (
-        messages[i].role === "assistant" &&
-        (i === 0 || messages[i - 1]?.role !== "user")
-      ) {
-        // Handle standalone assistant messages
-        turns.push({ assistant: messages[i] });
+  // Group messages into conversation turns
+  const conversationTurns: ConversationTurn[] = [];
+  for (let i = 0; i < messages.length; i++) {
+    if (messages[i].role === "user") {
+      const turn: ConversationTurn = { user: messages[i] };
+      if (messages[i + 1]?.role === "assistant") {
+        turn.assistant = messages[i + 1];
+        i++; // Skip next message since we've paired it
       }
+      conversationTurns.push(turn);
+    } else if (
+      messages[i].role === "assistant" &&
+      (i === 0 || messages[i - 1]?.role !== "user")
+    ) {
+      // Handle standalone assistant messages
+      conversationTurns.push({ assistant: messages[i] });
     }
-    return turns;
-  }, [messages]);
+  }
 
   // Check if we need to show loading after the last turn
   const showLoadingAfterLastTurn =
@@ -349,7 +318,7 @@ export const Chat: React.FC = () => {
               {/* Render conversation turns */}
               {conversationTurns.map((turn, index) => (
                 <ConversationTurnComponent
-                  key={turn.user?.id || turn.assistant?.id || `turn-${index}`}
+                  key={`turn-${index}`}
                   turn={turn}
                   isLoading={
                     showLoadingAfterLastTurn &&

@@ -57,7 +57,7 @@ export class EventManager {
     // Navigation (for compatibility with existing code)
     ipcMain.handle("navigate-to", (_, url: string) => {
       if (this.mainWindow.activeTab) {
-        this.mainWindow.activeTab.loadURL(url);
+        void this.mainWindow.activeTab.loadURL(url);
       }
     });
 
@@ -154,9 +154,13 @@ export class EventManager {
     ipcMain.handle("toggle-sidebar", () => {
       this.mainWindow.sidebar.toggle();
       this.mainWindow.updateAllBounds();
-      // Notify TopBar of sidebar visibility change
+      // Notify TopBar and Sidebar of visibility change
       const isVisible = this.mainWindow.sidebar.getIsVisible();
       this.mainWindow.topBar.view.webContents.send(
+        "sidebar-visibility-changed",
+        isVisible,
+      );
+      this.mainWindow.sidebar.view.webContents.send(
         "sidebar-visibility-changed",
         isVisible,
       );

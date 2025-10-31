@@ -1,17 +1,11 @@
+import { TabInfo } from "@preload/topbar.d";
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useState,
-  useCallback,
 } from "react";
-
-interface TabInfo {
-  id: string;
-  title: string;
-  url: string;
-  isActive: boolean;
-}
 
 interface BrowserContextType {
   tabs: TabInfo[];
@@ -33,7 +27,7 @@ interface BrowserContextType {
 
   // Tab actions
   takeScreenshot: (tabId: string) => Promise<string | null>;
-  runJavaScript: (tabId: string, code: string) => Promise<any>;
+  runJavaScript: (tabId: string, code: string) => Promise<void | null>;
 
   // Sidebar
   toggleSidebar: () => Promise<void>;
@@ -41,7 +35,7 @@ interface BrowserContextType {
 
 const BrowserContext = createContext<BrowserContextType | null>(null);
 
-export const useBrowser = () => {
+export const useBrowser = (): BrowserContextType => {
   const context = useContext(BrowserContext);
   if (!context) {
     throw new Error("useBrowser must be used within a BrowserProvider");
@@ -79,7 +73,7 @@ export const BrowserProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsLoading(false);
       }
     },
-    [refreshTabs]
+    [refreshTabs],
   );
 
   const closeTab = useCallback(
@@ -94,7 +88,7 @@ export const BrowserProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsLoading(false);
       }
     },
-    [refreshTabs]
+    [refreshTabs],
   );
 
   const switchTab = useCallback(
@@ -109,7 +103,7 @@ export const BrowserProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsLoading(false);
       }
     },
-    [refreshTabs]
+    [refreshTabs],
   );
 
   const navigateToUrl = useCallback(
@@ -120,14 +114,14 @@ export const BrowserProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         await window.topBarAPI.navigateTab(activeTab.id, url);
         // Wait a bit for navigation to start, then refresh tabs to get updated URL
-        setTimeout(() => refreshTabs(), 500);
+        setTimeout(() => void refreshTabs(), 500);
       } catch (error) {
         console.error("Failed to navigate:", error);
       } finally {
         setIsLoading(false);
       }
     },
-    [activeTab, refreshTabs]
+    [activeTab, refreshTabs],
   );
 
   const goBack = useCallback(async () => {
@@ -135,7 +129,7 @@ export const BrowserProvider: React.FC<{ children: React.ReactNode }> = ({
 
     try {
       await window.topBarAPI.goBack(activeTab.id);
-      setTimeout(() => refreshTabs(), 500);
+      setTimeout(() => void refreshTabs(), 500);
     } catch (error) {
       console.error("Failed to go back:", error);
     }
@@ -146,7 +140,7 @@ export const BrowserProvider: React.FC<{ children: React.ReactNode }> = ({
 
     try {
       await window.topBarAPI.goForward(activeTab.id);
-      setTimeout(() => refreshTabs(), 500);
+      setTimeout(() => void refreshTabs(), 500);
     } catch (error) {
       console.error("Failed to go forward:", error);
     }
@@ -157,7 +151,7 @@ export const BrowserProvider: React.FC<{ children: React.ReactNode }> = ({
 
     try {
       await window.topBarAPI.reload(activeTab.id);
-      setTimeout(() => refreshTabs(), 500);
+      setTimeout(() => void refreshTabs(), 500);
     } catch (error) {
       console.error("Failed to reload:", error);
     }
@@ -174,7 +168,7 @@ export const BrowserProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const runJavaScript = useCallback(async (tabId: string, code: string) => {
     try {
-      return await window.topBarAPI.tabRunJs(tabId, code);
+      return void (await window.topBarAPI.tabRunJs(tabId, code));
     } catch (error) {
       console.error("Failed to run JavaScript:", error);
       return null;
@@ -192,7 +186,7 @@ export const BrowserProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Initialize tabs and sidebar visibility on mount
   useEffect(() => {
-    refreshTabs();
+    void refreshTabs();
     // Get initial sidebar visibility state
     window.topBarAPI
       .getSidebarVisibility()
@@ -214,7 +208,7 @@ export const BrowserProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Periodic refresh to keep tabs in sync
   useEffect(() => {
-    const interval = setInterval(refreshTabs, 2000); // Refresh every 2 seconds
+    const interval = setInterval(() => void refreshTabs(), 2000); // Refresh every 2 seconds
     return () => clearInterval(interval);
   }, [refreshTabs]);
 

@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from "react";
+import { cn } from "@common/lib/utils";
 import {
   ArrowLeft,
   ArrowRight,
-  RefreshCw,
   Loader2,
   PanelRight,
   PanelRightClose,
+  RefreshCw,
 } from "lucide-react";
-import { useBrowser } from "../contexts/BrowserContext";
-import { ToolBarButton } from "../components/ToolBarButton";
-import { Favicon } from "../components/Favicon";
+import React, { useState } from "react";
 import { DarkModeToggle } from "../components/DarkModeToggle";
-import { cn } from "@common/lib/utils";
+import { Favicon } from "../components/Favicon";
+import { ToolBarButton } from "../components/ToolBarButton";
+import { useBrowser } from "../contexts/BrowserContext";
 
 export const AddressBar: React.FC = () => {
   const {
@@ -24,25 +24,17 @@ export const AddressBar: React.FC = () => {
     isSidebarVisible,
     toggleSidebar,
   } = useBrowser();
-  const [url, setUrl] = useState("");
-  const [isEditing, setIsEditing] = useState(false);
+  const [editedUrl, setEditedUrl] = useState("");
   const [isFocused, setIsFocused] = useState(false);
 
   // Debug log for sidebar visibility
   console.log("[AddressBar] isSidebarVisible:", isSidebarVisible);
 
-  // Update URL when active tab changes
-  useEffect(() => {
-    if (activeTab && !isEditing) {
-      setUrl(activeTab.url || "");
-    }
-  }, [activeTab, isEditing]);
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
-    if (!url.trim()) return;
+    if (!editedUrl.trim()) return;
 
-    let finalUrl = url.trim();
+    let finalUrl = editedUrl.trim();
 
     // Add protocol if missing
     if (!finalUrl.startsWith("http://") && !finalUrl.startsWith("https://")) {
@@ -55,33 +47,25 @@ export const AddressBar: React.FC = () => {
       }
     }
 
-    navigateToUrl(finalUrl);
-    setIsEditing(false);
+    void navigateToUrl(finalUrl);
     setIsFocused(false);
     (document.activeElement as HTMLElement)?.blur();
   };
 
-  const handleFocus = () => {
-    setIsEditing(true);
+  const handleFocus = (): void => {
+    // Copy current tab URL to editing state
+    setEditedUrl(activeTab?.url || "");
     setIsFocused(true);
   };
 
-  const handleBlur = () => {
-    setIsEditing(false);
+  const handleBlur = (): void => {
     setIsFocused(false);
-    // Reset to current tab URL if editing was cancelled
-    if (activeTab) {
-      setUrl(activeTab.url || "");
-    }
+    // No need to reset - we switch back to showing activeTab.url automatically
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent): void => {
     if (e.key === "Escape") {
-      setIsEditing(false);
       setIsFocused(false);
-      if (activeTab) {
-        setUrl(activeTab.url || "");
-      }
       (e.target as HTMLInputElement).blur();
     }
   };
@@ -90,7 +74,7 @@ export const AddressBar: React.FC = () => {
   const canGoForward = activeTab !== null;
 
   // Extract domain and title for display
-  const getDomain = () => {
+  const getDomain = (): string => {
     if (!activeTab?.url) return "";
     try {
       const urlObj = new URL(activeTab.url);
@@ -100,7 +84,7 @@ export const AddressBar: React.FC = () => {
     }
   };
 
-  const getPath = () => {
+  const getPath = (): string => {
     if (!activeTab?.url) return "";
     try {
       const urlObj = new URL(activeTab.url);
@@ -110,7 +94,7 @@ export const AddressBar: React.FC = () => {
     }
   };
 
-  const getFavicon = () => {
+  const getFavicon = (): string | null => {
     if (!activeTab?.url) return null;
     try {
       const domain = new URL(activeTab.url).hostname;
@@ -126,16 +110,16 @@ export const AddressBar: React.FC = () => {
       <div className="flex gap-1.5 app-region-no-drag">
         <ToolBarButton
           Icon={ArrowLeft}
-          onClick={goBack}
+          onClick={() => void goBack()}
           active={canGoBack && !isLoading}
         />
         <ToolBarButton
           Icon={ArrowRight}
-          onClick={goForward}
+          onClick={() => void goForward()}
           active={canGoForward && !isLoading}
         />
         <ToolBarButton
-          onClick={reload}
+          onClick={() => void reload()}
           active={activeTab !== null && !isLoading}
         >
           {isLoading ? (
@@ -153,8 +137,8 @@ export const AddressBar: React.FC = () => {
           <div className="bg-background rounded-lg shadow-md p-1 dark:bg-secondary">
             <input
               type="text"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              value={editedUrl}
+              onChange={(e) => setEditedUrl(e.target.value)}
               onFocus={handleFocus}
               onBlur={handleBlur}
               onKeyDown={handleKeyDown}
@@ -176,7 +160,7 @@ export const AddressBar: React.FC = () => {
             "flex-1 px-3 h-8 rounded-md cursor-text group/address-bar",
             "hover:bg-muted text-muted-foreground app-region-no-drag",
             "transition-colors duration-200",
-            "dark:hover:bg-muted/50"
+            "dark:hover:bg-muted/50",
           )}
         >
           <div className="flex h-full items-center">
@@ -213,7 +197,7 @@ export const AddressBar: React.FC = () => {
         {/* Sidebar toggle button - shows different icon based on sidebar state */}
         <ToolBarButton
           Icon={isSidebarVisible ? PanelRightClose : PanelRight}
-          onClick={toggleSidebar}
+          onClick={() => void toggleSidebar()}
           toggled={isSidebarVisible}
         />
       </div>

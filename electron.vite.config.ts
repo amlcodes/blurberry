@@ -31,6 +31,7 @@ export default defineConfig({
       alias: {
         "@renderer": resolve("src/renderer/src"),
         "@common": resolve("src/renderer/common"),
+        "@preload": resolve("src/preload"),
       },
     },
     plugins: [react()],

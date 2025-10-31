@@ -47,9 +47,9 @@ export class SideBar {
   }
 
   private setupBounds(): void {
-    if (!this.isVisible) return;
-
     const bounds = this.baseWindow.getBounds();
+    // Always set the sidebar bounds to allow animation to render
+    // The React component handles the visual hide/show animation
     this.webContentsView.setBounds({
       x: bounds.width - 400, // 400px width sidebar on the right
       y: 88, // Start below the topbar
@@ -59,17 +59,8 @@ export class SideBar {
   }
 
   updateBounds(): void {
-    if (this.isVisible) {
-      this.setupBounds();
-    } else {
-      // Hide the sidebar
-      this.webContentsView.setBounds({
-        x: 0,
-        y: 0,
-        width: 0,
-        height: 0,
-      });
-    }
+    // Always update bounds - let React handle the visual animation
+    this.setupBounds();
   }
 
   get view(): WebContentsView {
@@ -82,17 +73,20 @@ export class SideBar {
 
   show(): void {
     this.isVisible = true;
-    this.setupBounds();
+    // Notify renderer of visibility change FIRST so animation can start
+    this.webContentsView.webContents.send("sidebar-visibility-changed", true);
   }
 
   hide(): void {
     this.isVisible = false;
-    this.webContentsView.setBounds({
-      x: 0,
-      y: 0,
-      width: 0,
-      height: 0,
-    });
+    // Notify renderer of visibility change FIRST so animation can play
+    this.webContentsView.webContents.send("sidebar-visibility-changed", false);
+  }
+
+  getAnimationDuration(): number {
+    // Return animation duration in ms (based on spring animation)
+    // Spring with stiffness 400, damping 35, mass 0.7 takes ~400-500ms
+    return 500;
   }
 
   toggle(): void {

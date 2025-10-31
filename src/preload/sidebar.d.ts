@@ -1,3 +1,5 @@
+import { TabInfo } from "./topbar.d";
+
 export interface ChatRequest {
   message: string;
   context: {
@@ -14,11 +16,12 @@ export interface ChatResponse {
   isComplete: boolean;
 }
 
-export interface TabInfo {
+export interface Message {
   id: string;
-  title: string;
-  url: string;
-  isActive: boolean;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: number;
+  isStreaming?: boolean;
 }
 
 export interface SidebarAPI {
@@ -37,4 +40,10 @@ export interface SidebarAPI {
 
   // Tab information
   getActiveTabInfo: () => Promise<TabInfo | null>;
+
+  // Sidebar visibility
+  getSidebarVisibility: () => Promise<boolean>;
+  onSidebarVisibilityChanged: (
+    callback: (isVisible: boolean) => void,
+  ) => () => void;
 }

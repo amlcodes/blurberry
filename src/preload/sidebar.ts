@@ -43,6 +43,20 @@ const sidebarAPI = {
 
   // Tab information
   getActiveTabInfo: () => electronAPI.ipcRenderer.invoke("get-active-tab-info"),
+
+  // Sidebar visibility
+  getSidebarVisibility: () =>
+    electronAPI.ipcRenderer.invoke("get-sidebar-visibility"),
+  onSidebarVisibilityChanged: (callback: (isVisible: boolean) => void) => {
+    electronAPI.ipcRenderer.on(
+      "sidebar-visibility-changed",
+      (_, isVisible: boolean) => callback(isVisible),
+    );
+    // Return cleanup function
+    return () => {
+      electronAPI.ipcRenderer.removeAllListeners("sidebar-visibility-changed");
+    };
+  },
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to

@@ -245,9 +245,66 @@ export class Window {
     });
   }
 
+  // Easing function for smooth animation (ease-out)
+  private easeOutCubic(t: number): number {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  // Animate tab width change smoothly
+  private animateTabBounds(fromWidth: number, toWidth: number): void {
+    const bounds = this._baseWindow.getBounds();
+    const duration = 500; // Match sidebar animation duration
+    const startTime = Date.now();
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      if (progress >= 1) {
+        // Final update to ensure exact target width
+        this.tabsMap.forEach((tab) => {
+          tab.view.setBounds({
+            x: 0,
+            y: 88,
+            width: toWidth,
+            height: bounds.height - 88,
+          });
+        });
+        return;
+      }
+
+      // Apply easing to progress
+      const easedProgress = this.easeOutCubic(progress);
+      const currentWidth = fromWidth + (toWidth - fromWidth) * easedProgress;
+
+      this.tabsMap.forEach((tab) => {
+        tab.view.setBounds({
+          x: 0,
+          y: 88,
+          width: Math.round(currentWidth),
+          height: bounds.height - 88,
+        });
+      });
+
+      // Use requestAnimationFrame-like behavior with setTimeout
+      setTimeout(animate, 16); // ~60fps
+    };
+
+    animate();
+  }
+
   // Public method to update all bounds when sidebar is toggled
   updateAllBounds(): void {
-    this.updateTabBounds();
+    const bounds = this._baseWindow.getBounds();
+    const isVisible = this._sideBar.getIsVisible();
+
+    // Calculate current and target widths
+    const currentWidth = isVisible ? bounds.width : bounds.width - 400;
+    const targetWidth = isVisible ? bounds.width - 400 : bounds.width;
+
+    // Animate tab width change
+    this.animateTabBounds(currentWidth, targetWidth);
+
     this._sideBar.updateBounds();
   }
 

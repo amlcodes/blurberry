@@ -1,32 +1,65 @@
-import React, { useEffect } from 'react'
-import { ChatProvider } from './contexts/ChatContext'
-import { Chat } from './components/Chat'
-import { useDarkMode } from '@common/hooks/useDarkMode'
+import { useDarkMode } from "@common/hooks/useDarkMode";
+import { motion } from "motion/react";
+import React, { useEffect, useState } from "react";
+import { Chat } from "./components/Chat";
+import { ChatProvider } from "./contexts/ChatContext";
 
-const SidebarContent: React.FC = () => {
-    const { isDarkMode } = useDarkMode()
+const SidebarContent: React.FC<{ isVisible: boolean }> = ({ isVisible }) => {
+  const { isDarkMode } = useDarkMode();
 
-    // Apply dark mode class to the document
-    useEffect(() => {
-        if (isDarkMode) {
-            document.documentElement.classList.add('dark')
-        } else {
-            document.documentElement.classList.remove('dark')
-        }
-    }, [isDarkMode])
+  // Apply dark mode class to the document
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [isDarkMode]);
 
-    return (
-        <div className="h-screen flex flex-col bg-background border-l border-border">
-            <Chat />
-        </div>
-    )
-}
+  return (
+    <motion.div
+      className="h-screen flex flex-col bg-background border-l border-border"
+      initial={false}
+      animate={{
+        x: isVisible ? 0 : 400,
+        opacity: isVisible ? 1 : 0,
+      }}
+      transition={{
+        type: "spring",
+        stiffness: 260,
+        damping: 30,
+        mass: 1,
+      }}
+    >
+      <Chat />
+    </motion.div>
+  );
+};
 
 export const SidebarApp: React.FC = () => {
-    return (
-        <ChatProvider>
-            <SidebarContent />
-        </ChatProvider>
-    )
-}
+  const [isVisible, setIsVisible] = useState(true);
 
+  // Initialize sidebar visibility on mount
+  useEffect(() => {
+    window.sidebarAPI
+      .getSidebarVisibility()
+      .then((visible) => {
+        setIsVisible(visible);
+      })
+      .catch(console.error);
+  }, []);
+
+  // Listen for sidebar visibility changes
+  useEffect(() => {
+    const cleanup = window.sidebarAPI.onSidebarVisibilityChanged((visible) => {
+      setIsVisible(visible);
+    });
+    return cleanup;
+  }, []);
+
+  return (
+    <ChatProvider>
+      <SidebarContent isVisible={isVisible} />
+    </ChatProvider>
+  );
+};
