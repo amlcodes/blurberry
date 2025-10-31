@@ -4,7 +4,17 @@ import { resolve } from "path";
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [
+      externalizeDepsPlugin({
+        exclude: [
+          "zod",
+          "@ai-sdk/anthropic",
+          "@ai-sdk/openai",
+          "@ai-sdk/provider-utils",
+          "ai",
+        ],
+      }),
+    ],
   },
   preload: {
     plugins: [externalizeDepsPlugin()],
