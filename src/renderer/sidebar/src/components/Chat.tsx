@@ -1,19 +1,12 @@
 import { Button } from "@common/components/Button";
 import { cn } from "@common/lib/utils";
+import type { Message } from "@preload/sidebar.d";
 import { ArrowUp, Plus } from "lucide-react";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import { useChat } from "../contexts/ChatContext";
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: number;
-  isStreaming?: boolean;
-}
 
 // Auto-scroll hook
 const useAutoScroll = (

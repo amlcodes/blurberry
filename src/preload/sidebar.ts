@@ -1,12 +1,6 @@
 import { electronAPI } from "@electron-toolkit/preload";
 import { contextBridge } from "electron";
-import type { ChatRequest } from "./sidebar.d";
-
-interface ChatResponse {
-  messageId: string;
-  content: string;
-  isComplete: boolean;
-}
+import type { ChatRequest, ChatResponse } from "./sidebar.d";
 
 // Sidebar specific APIs
 const sidebarAPI = {

@@ -2,12 +2,7 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { openai } from "@ai-sdk/openai";
 import { streamText, type LanguageModel, type ModelMessage } from "ai";
 import { WebContents } from "electron";
-// import * as dotenv from "dotenv";
-// import { join } from "path";
 import type { Window } from "./Window";
-
-// Load environment variables from .env file
-// dotenv.config({ path: join(__dirname, "../../.env") });
 
 import type { ChatRequest } from "../preload/sidebar.d";
 
@@ -50,6 +45,7 @@ export class LLMClient {
 
   private getProvider(): LLMProvider {
     const provider = process.env.LLM_PROVIDER?.toLowerCase();
+    console.log("LLM_PROVIDER", provider);
     if (provider === "anthropic") return "anthropic";
     return "openai"; // Default to OpenAI
   }

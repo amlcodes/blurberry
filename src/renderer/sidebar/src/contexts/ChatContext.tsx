@@ -1,3 +1,4 @@
+import type { Message } from "@preload/sidebar.d";
 import React, {
   createContext,
   useCallback,
@@ -5,14 +6,6 @@ import React, {
   useEffect,
   useState,
 } from "react";
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: number;
-  isStreaming?: boolean;
-}
 
 interface ChatContextType {
   messages: Message[];
