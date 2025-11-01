@@ -6,6 +6,8 @@ export class Tab {
   private _title: string;
   private _url: string;
   private _isVisible: boolean = false;
+  private _groupId: string | null = null;
+  private _position: number = 0;
 
   constructor(id: string, url: string = "https://www.google.com") {
     this._id = id;
@@ -68,6 +70,22 @@ export class Tab {
 
   get view(): WebContentsView {
     return this.webContentsView;
+  }
+
+  get groupId(): string | null {
+    return this._groupId;
+  }
+
+  set groupId(value: string | null) {
+    this._groupId = value;
+  }
+
+  get position(): number {
+    return this._position;
+  }
+
+  set position(value: number) {
+    this._position = value;
   }
 
   // Public methods

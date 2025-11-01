@@ -59,7 +59,49 @@ export class EventManager {
         title: tab.title,
         url: tab.url,
         isActive: activeTabId === tab.id,
+        groupId: tab.groupId,
       }));
+    });
+
+    // Group management
+    ipcMain.handle("create-group", (_, title: string, colorId?: string) => {
+      const group = this.mainWindow.createGroup(title, colorId);
+      return group.toJSON();
+    });
+
+    ipcMain.handle("delete-group", (_, groupId: string) => {
+      return this.mainWindow.deleteGroup(groupId);
+    });
+
+    ipcMain.handle(
+      "update-group",
+      (
+        _,
+        groupId: string,
+        updates: { title?: string; colorId?: string; isCollapsed?: boolean },
+      ) => {
+        return this.mainWindow.updateGroup(groupId, updates);
+      },
+    );
+
+    ipcMain.handle("add-tab-to-group", (_, tabId: string, groupId: string) => {
+      return this.mainWindow.addTabToGroup(tabId, groupId);
+    });
+
+    ipcMain.handle("remove-tab-from-group", (_, tabId: string) => {
+      return this.mainWindow.removeTabFromGroup(tabId);
+    });
+
+    ipcMain.handle("get-groups", () => {
+      return this.mainWindow.allGroups.map((group) => group.toJSON());
+    });
+
+    ipcMain.handle("reorder-groups", (_, orderedGroupIds: string[]) => {
+      return this.mainWindow.reorderGroups(orderedGroupIds);
+    });
+
+    ipcMain.handle("update-tab-positions", (_, orderedTabIds: string[]) => {
+      return this.mainWindow.updateTabPositions(orderedTabIds);
     });
 
     // Navigation (for compatibility with existing code)

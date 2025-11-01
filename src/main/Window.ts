@@ -1,4 +1,5 @@
 import { BaseWindow, screen, shell } from "electron";
+import { Group, GROUP_COLORS, GroupColor } from "./Group";
 import { Panel } from "./Panel";
 import { SideBar } from "./SideBar";
 import { Tab } from "./Tab";
@@ -9,8 +10,10 @@ type LayoutMode = "topbar" | "sidebar";
 export class Window {
   private _baseWindow: BaseWindow;
   private tabsMap: Map<string, Tab> = new Map();
+  private groupsMap: Map<string, Group> = new Map();
   private activeTabId: string | null = null;
   private tabCounter: number = 0;
+  private groupCounter: number = 0;
   private _topBar: TopBar | null = null;
   private _sideBar: SideBar | null = null;
   private _panel: Panel;
@@ -220,6 +223,9 @@ export class Window {
     const tabId = `tab-${++this.tabCounter}`;
     const tab = new Tab(tabId, url);
 
+    // Set position to be at the end
+    tab.position = this.tabsMap.size;
+
     // Add the tab's WebContentsView to the window (at bottom of z-order)
     this._baseWindow.contentView.addChildView(tab.view, 0);
 
@@ -353,6 +359,156 @@ export class Window {
 
     // Replace the old map with the new ordered map
     this.tabsMap = newTabsMap;
+
+    return true;
+  }
+
+  // Group Management
+  createGroup(title: string, colorId?: string): Group {
+    const groupId = `group-${++this.groupCounter}`;
+    const color = colorId
+      ? GROUP_COLORS.find((c: GroupColor) => c.id === colorId) ||
+        GROUP_COLORS[0]
+      : GROUP_COLORS[0];
+
+    // Set position to be at the end
+    const position = this.groupsMap.size;
+    const group = new Group(groupId, title, color, false, position);
+    this.groupsMap.set(groupId, group);
+
+    return group;
+  }
+
+  deleteGroup(groupId: string): boolean {
+    const group = this.groupsMap.get(groupId);
+    if (!group) {
+      return false;
+    }
+
+    // Remove group from all tabs
+    this.tabsMap.forEach((tab) => {
+      if (tab.groupId === groupId) {
+        tab.groupId = null;
+      }
+    });
+
+    // Delete the group
+    this.groupsMap.delete(groupId);
+
+    return true;
+  }
+
+  updateGroup(
+    groupId: string,
+    updates: {
+      title?: string;
+      colorId?: string;
+      isCollapsed?: boolean;
+    },
+  ): boolean {
+    const group = this.groupsMap.get(groupId);
+    if (!group) {
+      return false;
+    }
+
+    if (updates.title !== undefined) {
+      group.title = updates.title;
+    }
+
+    if (updates.colorId !== undefined) {
+      const color = GROUP_COLORS.find(
+        (c: GroupColor) => c.id === updates.colorId,
+      );
+      if (color) {
+        group.color = color;
+      }
+    }
+
+    if (updates.isCollapsed !== undefined) {
+      group.isCollapsed = updates.isCollapsed;
+    }
+
+    return true;
+  }
+
+  addTabToGroup(tabId: string, groupId: string): boolean {
+    const tab = this.tabsMap.get(tabId);
+    const group = this.groupsMap.get(groupId);
+
+    if (!tab || !group) {
+      return false;
+    }
+
+    tab.groupId = groupId;
+    return true;
+  }
+
+  removeTabFromGroup(tabId: string): boolean {
+    const tab = this.tabsMap.get(tabId);
+    if (!tab) {
+      return false;
+    }
+
+    tab.groupId = null;
+    return true;
+  }
+
+  getGroup(groupId: string): Group | null {
+    return this.groupsMap.get(groupId) || null;
+  }
+
+  get allGroups(): Group[] {
+    return Array.from(this.groupsMap.values()).sort(
+      (a, b) => a.position - b.position,
+    );
+  }
+
+  // Reorder groups by providing new order of group IDs
+  reorderGroups(orderedGroupIds: string[]): boolean {
+    // Validate that all group IDs exist
+    const currentGroupIds = new Set(this.groupsMap.keys());
+    if (orderedGroupIds.length !== currentGroupIds.size) {
+      return false;
+    }
+
+    for (const groupId of orderedGroupIds) {
+      if (!currentGroupIds.has(groupId)) {
+        return false;
+      }
+    }
+
+    // Update positions
+    orderedGroupIds.forEach((groupId, index) => {
+      const group = this.groupsMap.get(groupId);
+      if (group) {
+        group.position = index;
+      }
+    });
+
+    return true;
+  }
+
+  // Update tab positions based on new order
+  updateTabPositions(orderedTabIds: string[]): boolean {
+    // Validate that all tab IDs exist
+    const currentTabIds = new Set(this.tabsMap.keys());
+    if (orderedTabIds.length !== currentTabIds.size) {
+      return false;
+    }
+
+    for (const tabId of orderedTabIds) {
+      if (!currentTabIds.has(tabId)) {
+        return false;
+      }
+    }
+
+    // Update positions
+    orderedTabIds.forEach((tabId, index) => {
+      const tab = this.tabsMap.get(tabId);
+      if (tab) {
+        tab.position = index;
+      }
+    });
 
     return true;
   }
