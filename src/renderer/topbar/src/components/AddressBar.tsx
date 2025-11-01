@@ -1,3 +1,7 @@
+import { DarkModeToggle } from "@common/components/DarkModeToggle";
+import { Favicon } from "@common/components/Favicon";
+import { ToolBarButton } from "@common/components/ToolBarButton";
+import { useBrowser } from "@common/contexts/BrowserContext";
 import { cn } from "@common/lib/utils";
 import {
   ArrowLeft,
@@ -8,10 +12,6 @@ import {
   RefreshCw,
 } from "lucide-react";
 import React, { useState } from "react";
-import { DarkModeToggle } from "../components/DarkModeToggle";
-import { Favicon } from "../components/Favicon";
-import { ToolBarButton } from "../components/ToolBarButton";
-import { useBrowser } from "../contexts/BrowserContext";
 
 export const AddressBar: React.FC = () => {
   const {
@@ -21,14 +21,14 @@ export const AddressBar: React.FC = () => {
     goForward,
     reload,
     isLoading,
-    isSidebarVisible,
-    toggleSidebar,
+    isPanelVisible,
+    togglePanel,
   } = useBrowser();
   const [editedUrl, setEditedUrl] = useState("");
   const [isFocused, setIsFocused] = useState(false);
 
-  // Debug log for sidebar visibility
-  console.log("[AddressBar] isSidebarVisible:", isSidebarVisible);
+  // Debug log for panel visibility
+  console.log("[AddressBar] isPanelVisible:", isPanelVisible);
 
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
@@ -194,11 +194,11 @@ export const AddressBar: React.FC = () => {
       {/* Actions Menu */}
       <div className="flex items-center gap-1 app-region-no-drag">
         <DarkModeToggle />
-        {/* Sidebar toggle button - shows different icon based on sidebar state */}
+        {/* Panel toggle button - shows different icon based on panel state */}
         <ToolBarButton
-          Icon={isSidebarVisible ? PanelRightClose : PanelRight}
-          onClick={() => void toggleSidebar()}
-          toggled={isSidebarVisible}
+          Icon={isPanelVisible ? PanelRightClose : PanelRight}
+          onClick={() => void togglePanel()}
+          toggled={isPanelVisible}
         />
       </div>
     </>

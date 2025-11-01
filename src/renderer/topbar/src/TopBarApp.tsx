@@ -1,11 +1,11 @@
+import { BrowserProvider } from "@common/contexts/BrowserContext";
 import React from "react";
 import { AddressBar } from "./components/AddressBar";
 import { TabBar } from "./components/TabBar";
-import { BrowserProvider } from "./contexts/BrowserContext";
 
 export const TopBarApp: React.FC = () => {
   return (
-    <BrowserProvider>
+    <BrowserProvider api={window.topBarAPI}>
       <div className="flex flex-col bg-background select-none">
         {/* Tab Bar */}
         <div className="w-full h-10 pr-2 flex items-center app-region-drag bg-muted dark:bg-muted">

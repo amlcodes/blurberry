@@ -1,56 +1,62 @@
 import { electronAPI } from "@electron-toolkit/preload";
 import { contextBridge } from "electron";
-import type { ChatRequest, ChatResponse } from "./sidebar.d";
 
-// Sidebar specific APIs
-const sidebarAPI = {
-  // Chat functionality
-  sendChatMessage: (request: Partial<ChatRequest>) =>
-    electronAPI.ipcRenderer.invoke("sidebar-chat-message", request),
+// SideBar specific APIs (same as TopBar since they share functionality)
+const sideBarAPI = {
+  // Tab management
+  createTab: (url?: string) =>
+    electronAPI.ipcRenderer.invoke("create-tab", url),
+  closeTab: (tabId: string) =>
+    electronAPI.ipcRenderer.invoke("close-tab", tabId),
+  switchTab: (tabId: string) =>
+    electronAPI.ipcRenderer.invoke("switch-tab", tabId),
+  getTabs: () => electronAPI.ipcRenderer.invoke("get-tabs"),
 
-  clearChat: () => electronAPI.ipcRenderer.invoke("sidebar-clear-chat"),
+  // Tab navigation
+  navigateTab: (tabId: string, url: string) =>
+    electronAPI.ipcRenderer.invoke("navigate-tab", tabId, url),
+  goBack: (tabId: string) =>
+    electronAPI.ipcRenderer.invoke("tab-go-back", tabId),
+  goForward: (tabId: string) =>
+    electronAPI.ipcRenderer.invoke("tab-go-forward", tabId),
+  reload: (tabId: string) =>
+    electronAPI.ipcRenderer.invoke("tab-reload", tabId),
 
-  getMessages: () => electronAPI.ipcRenderer.invoke("sidebar-get-messages"),
+  // Tab actions
+  tabScreenshot: (tabId: string) =>
+    electronAPI.ipcRenderer.invoke("tab-screenshot", tabId),
+  tabRunJs: (tabId: string, code: string) =>
+    electronAPI.ipcRenderer.invoke("tab-run-js", tabId, code),
 
-  onChatResponse: (callback: (data: ChatResponse) => void) => {
-    electronAPI.ipcRenderer.on("chat-response", (_, data) => callback(data));
-  },
-
-  onMessagesUpdated: (callback: (messages: any[]) => void) => {
-    electronAPI.ipcRenderer.on("chat-messages-updated", (_, messages) =>
-      callback(messages),
-    );
-  },
-
-  removeChatResponseListener: () => {
-    electronAPI.ipcRenderer.removeAllListeners("chat-response");
-  },
-
-  removeMessagesUpdatedListener: () => {
-    electronAPI.ipcRenderer.removeAllListeners("chat-messages-updated");
-  },
-
-  // Page content access
-  getPageContent: () => electronAPI.ipcRenderer.invoke("get-page-content"),
-  getPageText: () => electronAPI.ipcRenderer.invoke("get-page-text"),
-  getCurrentUrl: () => electronAPI.ipcRenderer.invoke("get-current-url"),
-
-  // Tab information
-  getActiveTabInfo: () => electronAPI.ipcRenderer.invoke("get-active-tab-info"),
-
-  // Sidebar visibility
-  getSidebarVisibility: () =>
-    electronAPI.ipcRenderer.invoke("get-sidebar-visibility"),
-  onSidebarVisibilityChanged: (callback: (isVisible: boolean) => void) => {
+  // Panel
+  togglePanel: () => electronAPI.ipcRenderer.invoke("toggle-panel"),
+  getPanelVisibility: () =>
+    electronAPI.ipcRenderer.invoke("get-panel-visibility"),
+  onPanelVisibilityChanged: (callback: (isVisible: boolean) => void) => {
     electronAPI.ipcRenderer.on(
-      "sidebar-visibility-changed",
+      "panel-visibility-changed",
       (_, isVisible: boolean) => callback(isVisible),
     );
     // Return cleanup function
     return () => {
-      electronAPI.ipcRenderer.removeAllListeners("sidebar-visibility-changed");
+      electronAPI.ipcRenderer.removeAllListeners("panel-visibility-changed");
     };
   },
+
+  // Sidebar
+  resizeSidebar: (width: number) =>
+    electronAPI.ipcRenderer.invoke("resize-sidebar", width),
+  getSidebarWidth: () => electronAPI.ipcRenderer.invoke("get-sidebar-width"),
+
+  // SideBar visibility (auto-hide)
+  showBarTemporarily: () =>
+    electronAPI.ipcRenderer.invoke("show-sidebar-temporarily"),
+  hideBarTemporarily: () =>
+    electronAPI.ipcRenderer.invoke("hide-sidebar-temporarily"),
+  getBarVisibility: () =>
+    electronAPI.ipcRenderer.invoke("get-sidebar-visibility"),
+  toggleBarVisibility: () =>
+    electronAPI.ipcRenderer.invoke("toggle-sidebar-visibility"),
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to
@@ -59,11 +65,11 @@ const sidebarAPI = {
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld("electron", electronAPI);
-    contextBridge.exposeInMainWorld("sidebarAPI", sidebarAPI);
+    contextBridge.exposeInMainWorld("sideBarAPI", sideBarAPI);
   } catch (error) {
     console.error(error);
   }
 } else {
   window.electron = electronAPI;
-  window.sidebarAPI = sidebarAPI;
+  window.sideBarAPI = sideBarAPI;
 }

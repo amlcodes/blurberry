@@ -2,12 +2,13 @@
   "extends": "@electron-toolkit/tsconfig/tsconfig.web.json",
   "include": [
     "src/renderer/common/**/*",
-    "src/renderer/sidebar/**/*",
+    "src/renderer/panel/**/*",
     "src/renderer/topbar/**/*",
-    "src/preload/*.d.ts"
+    "src/renderer/sidebar/**/*",
+    "src/preload/global.d.ts"
   ],
   "compilerOptions": {
-    "composite": true,
+    // "composite": true,
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
