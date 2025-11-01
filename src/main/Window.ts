@@ -1,10 +1,15 @@
 import { BaseWindow, screen, shell } from "electron";
+import { HistoryDatabase } from "./database/HistoryDatabase";
 import { Group, GROUP_COLORS, GroupColor } from "./Group";
+import { HistorySettings } from "./HistorySettings";
+import { HistoryTracker } from "./HistoryTracker";
 import type { LLMClient } from "./LLMClient";
 import { Panel } from "./Panel";
 import { SideBar } from "./SideBar";
 import { Tab } from "./Tab";
 import { TopBar } from "./TopBar";
+import { VectorStore } from "./VectorStore";
+import { WorkflowAnalyzer } from "./WorkflowAnalyzer";
 
 type LayoutMode = "topbar" | "sidebar";
 
@@ -26,6 +31,13 @@ export class Window {
   private _hideTimeout: NodeJS.Timeout | null = null;
   private _isTemporarilyShowing: boolean = false;
 
+  // History tracking
+  public readonly historyDatabase: HistoryDatabase;
+  public readonly historyTracker: HistoryTracker;
+  public readonly historySettings: HistorySettings;
+  public readonly workflowAnalyzer: WorkflowAnalyzer;
+  public readonly vectorStore: VectorStore;
+
   constructor() {
     // Create the browser window.
     this._baseWindow = new BaseWindow({
@@ -39,6 +51,13 @@ export class Window {
     });
 
     this._baseWindow.setMinimumSize(1000, 800);
+
+    // Initialize history tracking
+    this.historyDatabase = new HistoryDatabase();
+    this.historySettings = new HistorySettings();
+    this.historyTracker = new HistoryTracker(this, this.historyDatabase);
+    this.workflowAnalyzer = new WorkflowAnalyzer(this.historyDatabase);
+    this.vectorStore = new VectorStore();
 
     // Initialize with topbar layout by default
     // Create panel first so it's behind the topbar/sidebar
@@ -56,6 +75,9 @@ export class Window {
 
     // Create the first tab
     this.createTab();
+
+    // Initialize history tracking asynchronously
+    void this.initializeHistoryTracking();
 
     // Set up window resize handler
     this._baseWindow.on("resize", () => {
@@ -85,8 +107,25 @@ export class Window {
     this.startEdgeDetection();
   }
 
+  private async initializeHistoryTracking(): Promise<void> {
+    // Wait for the database to be ready
+    await this.historyDatabase.ready();
+
+    // Set up vector store for LLM and tracker
+    this.llmClient.setVectorStore(this.vectorStore);
+    this.historyTracker.setVectorStore(this.vectorStore);
+    this.historyTracker.setEmbeddingModel(this.llmClient.embeddingModel);
+
+    // Start history tracking
+    this.historyTracker.start();
+  }
+
   private setupEventListeners(): void {
     this._baseWindow.on("closed", () => {
+      // Stop history tracking
+      this.historyTracker.stop();
+      this.historyDatabase.close();
+
       // Clean up all tabs when window is closed
       this.tabsMap.forEach((tab) => tab.destroy());
       this.tabsMap.clear();
@@ -238,6 +277,9 @@ export class Window {
     // Store the tab
     this.tabsMap.set(tabId, tab);
 
+    // Set up history tracking for this tab
+    this.historyTracker.setupTabListeners(tab);
+
     // If this is the first tab, make it active
     if (this.tabsMap.size === 1) {
       this.switchActiveTab(tabId);
@@ -283,6 +325,9 @@ export class Window {
       return false;
     }
 
+    // Track tab close event
+    this.historyTracker.handleTabClose(tabId);
+
     // Remove the WebContentsView from the window
     this._baseWindow.contentView.removeChildView(tab.view);
 
@@ -326,6 +371,9 @@ export class Window {
     // Show the new active tab
     tab.show();
     this.activeTabId = tabId;
+
+    // Track tab switch event
+    this.historyTracker.handleTabSwitch(tabId);
 
     // Update the window title to match the tab title
     this._baseWindow.setTitle(tab.title || "Blueberry Browser");

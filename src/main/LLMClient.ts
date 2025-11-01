@@ -6,10 +6,13 @@ import {
   generateId,
   generateText,
   streamText,
+  tool,
   type LanguageModel,
   type UIMessage,
 } from "ai";
 import { WebContents } from "electron";
+import { z } from "zod";
+import type { VectorStore } from "./VectorStore";
 import type { Window } from "./Window";
 
 import type { ChatRequest } from "../preload/panel.d";
@@ -35,8 +38,9 @@ export class LLMClient {
   private readonly provider: LLMProvider;
   private readonly modelName: string;
   private readonly model: LanguageModel | null;
-  private readonly embeddingModel: ReturnType<typeof openai.embedding> | null;
+  public readonly embeddingModel: ReturnType<typeof openai.embedding> | null;
   private messages: UIMessage[] = [];
+  private vectorStore: VectorStore | null = null;
 
   constructor(webContents: WebContents) {
     this.webContents = webContents;
@@ -51,6 +55,10 @@ export class LLMClient {
   // Set the window reference after construction to avoid circular dependencies
   setWindow(window: Window): void {
     this.window = window;
+  }
+
+  setVectorStore(vectorStore: VectorStore): void {
+    this.vectorStore = vectorStore;
   }
 
   private getProvider(): LLMProvider {
@@ -314,6 +322,77 @@ Respond ONLY with a valid JSON array (no markdown code blocks):
     this.webContents.send("chat-messages-updated", this.messages);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private getTools(): any {
+    return {
+      search_browsing_history: tool({
+        description:
+          "Search the user's browsing history semantically. Returns top 3 most relevant pages.",
+        inputSchema: z.object({
+          query: z
+            .string()
+            .describe("What the user is looking for in their browsing history"),
+        }),
+        execute: async ({ query }: { query: string }) => {
+          return await this.searchBrowsingHistory(query);
+        },
+      }),
+    };
+  }
+
+  private async searchBrowsingHistory(query: string): Promise<{
+    matches: Array<{
+      visitId: number;
+      title: string;
+      url: string;
+      timestamp: number;
+    }>;
+  }> {
+    if (!this.vectorStore || !this.embeddingModel || !this.window) {
+      return { matches: [] };
+    }
+
+    try {
+      // Generate embedding for query
+      const { embeddings } = await embedMany({
+        model: this.embeddingModel,
+        values: [query],
+      });
+
+      // Search vector store
+      const visitIds = this.vectorStore.search(embeddings[0], 3);
+
+      // Get page details from database
+      const database = this.window.historyDatabase;
+      const matches = visitIds
+        .map((visitId) => {
+          const visit = database.getVisitContent(visitId);
+          if (!visit) return null;
+
+          // Get timestamp
+          const timestamp = database.getVisitTimestamp(visitId) || 0;
+
+          return {
+            visitId,
+            title: visit.title,
+            url: visit.url,
+            timestamp,
+          };
+        })
+        .filter(Boolean) as Array<{
+        visitId: number;
+        title: string;
+        url: string;
+        timestamp: number;
+      }>;
+
+      return { matches };
+    } catch (error) {
+      console.error("Error searching history:", error);
+      return { matches: [] };
+    }
+  }
+
   private async prepareMessagesWithContext(): Promise<UIMessage[]> {
     // Get page context from active tab
     let pageUrl: string | null = null;
@@ -357,6 +436,22 @@ Respond ONLY with a valid JSON array (no markdown code blocks):
       "The user's messages may include screenshots of the current page as the first image.",
     ];
 
+    // Browsing history search capability
+    parts.push(
+      "\nBROWSING HISTORY SEARCH:",
+      'When the user asks to find or open something they\'ve browsed before (e.g., "open that tweet about X", "find the article I read about Y"), use the search_browsing_history tool.',
+      "The tool returns the top 3 most relevant pages. Present them to the user and let them choose which one to open. Do not automatically open pages without user confirmation.",
+      "\nExample:",
+      'User: "Open the tweet about climate change"',
+      "You: [use search_browsing_history tool]",
+      'You: "I found these pages in your history:',
+      "1. [Title] - [URL]",
+      "2. [Title] - [URL]",
+      "3. [Title] - [URL]",
+      "",
+      "Click on the one you'd like to open.\"",
+    );
+
     if (url) {
       parts.push(`\nCurrent page URL: ${url}`);
     }
@@ -395,17 +490,19 @@ Respond ONLY with a valid JSON array (no markdown code blocks):
       messages: modelMessages,
       temperature: DEFAULT_TEMPERATURE,
       maxRetries: 3,
+      tools: this.getTools(),
       abortSignal: undefined, // Could add abort controller for cancellation
     });
 
-    await this.processStream(result.textStream, messageId);
+    await this.processStream(result, messageId);
   }
 
   private async processStream(
-    textStream: AsyncIterable<string>,
+    result: unknown,
     messageId: string,
   ): Promise<void> {
     let accumulatedText = "";
+    const toolResults: Array<{ toolName: string; result: unknown }> = [];
 
     // Create a placeholder assistant message in UIMessage format
     const assistantMessageId = generateId();
@@ -422,24 +519,60 @@ Respond ONLY with a valid JSON array (no markdown code blocks):
     const messageIndex = this.messages.length;
     this.messages.push(assistantMessage);
 
-    for await (const chunk of textStream) {
-      accumulatedText += chunk;
+    const resultStream = result as { fullStream: AsyncIterable<any> };
+    for await (const chunk of resultStream.fullStream) {
+      if (chunk.type === "text-delta") {
+        accumulatedText += chunk.text;
 
-      // Update assistant message content (still streaming)
-      this.messages[messageIndex] = {
-        id: assistantMessageId,
-        role: "assistant",
-        parts: [{ type: "text" as const, text: accumulatedText }],
-        metadata: {
-          isStreaming: true,
-        },
-      };
-      this.sendMessagesToRenderer();
+        // Update assistant message content (still streaming)
+        this.messages[messageIndex] = {
+          id: assistantMessageId,
+          role: "assistant",
+          parts: [{ type: "text" as const, text: accumulatedText }],
+          metadata: {
+            isStreaming: true,
+            toolResults: toolResults.length > 0 ? toolResults : undefined,
+          },
+        };
+        this.sendMessagesToRenderer();
 
-      this.sendStreamChunk(messageId, {
-        content: chunk,
-        isComplete: false,
-      });
+        this.sendStreamChunk(messageId, {
+          content: chunk.text,
+          isComplete: false,
+        });
+      } else if (chunk.type === "tool-call") {
+        // Send tool call to renderer for UI display
+        this.webContents.send("chat-tool-call", {
+          messageId,
+          toolName: chunk.toolName,
+          args: chunk.input,
+        });
+      } else if (chunk.type === "tool-result") {
+        // Store tool result in message metadata
+        toolResults.push({
+          toolName: chunk.toolName,
+          result: chunk.output,
+        });
+
+        // Send tool results to renderer
+        this.webContents.send("chat-tool-result", {
+          messageId: assistantMessageId,
+          toolName: chunk.toolName,
+          result: chunk.output,
+        });
+
+        // Update message with tool results
+        this.messages[messageIndex] = {
+          id: assistantMessageId,
+          role: "assistant",
+          parts: [{ type: "text" as const, text: accumulatedText }],
+          metadata: {
+            isStreaming: true,
+            toolResults,
+          },
+        };
+        this.sendMessagesToRenderer();
+      }
     }
 
     // Final update with complete content (not streaming anymore)
@@ -449,13 +582,14 @@ Respond ONLY with a valid JSON array (no markdown code blocks):
       parts: [{ type: "text" as const, text: accumulatedText }],
       metadata: {
         isStreaming: false,
+        toolResults: toolResults.length > 0 ? toolResults : undefined,
       },
     };
     this.sendMessagesToRenderer();
 
     // Send the final complete signal
     this.sendStreamChunk(messageId, {
-      content: accumulatedText,
+      content: "",
       isComplete: true,
     });
   }

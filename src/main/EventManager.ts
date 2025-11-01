@@ -25,6 +25,9 @@ export class EventManager {
     // Dark mode events
     this.handleDarkModeEvents();
 
+    // History events
+    this.handleHistoryEvents();
+
     // Debug events
     this.handleDebugEvents();
   }
@@ -210,6 +213,13 @@ export class EventManager {
       return false;
     });
 
+    // Open URL in new tab (for RAG browsing history search)
+    ipcMain.handle("browser-open-url", (_, url: string) => {
+      const tab = this.mainWindow.createTab(url);
+      this.mainWindow.switchActiveTab(tab.id);
+      return tab.id;
+    });
+
     ipcMain.handle("tab-screenshot", async (_, tabId: string) => {
       const tab = this.mainWindow.getTab(tabId);
       if (tab) {
@@ -379,6 +389,214 @@ export class EventManager {
     // Dark mode broadcasting
     ipcMain.on("dark-mode-changed", (event, isDarkMode) => {
       this.broadcastDarkMode(event.sender, isDarkMode);
+    });
+  }
+
+  private handleHistoryEvents(): void {
+    // Get recent history
+    ipcMain.handle("history-get-recent", (_, limit?: number) => {
+      const database = this.mainWindow.historyDatabase;
+      const tracker = this.mainWindow.historyTracker;
+      if (!database) return [];
+
+      // Flush any pending interactions before fetching history
+      if (tracker) {
+        tracker.flushInteractions();
+      }
+
+      return database.getRecentHistory(limit || 50);
+    });
+
+    // Get history by date range
+    ipcMain.handle(
+      "history-get-by-date-range",
+      (_, startTime: number, endTime: number) => {
+        const database = this.mainWindow.historyDatabase;
+        if (!database) return [];
+        return database.getHistoryByDateRange(startTime, endTime);
+      },
+    );
+
+    // Search history
+    ipcMain.handle("history-search", (_, query: string, limit?: number) => {
+      const database = this.mainWindow.historyDatabase;
+      if (!database) return [];
+      return database.searchHistory(query, limit || 50);
+    });
+
+    // Get visit details
+    ipcMain.handle("history-get-visit-details", (_, visitId: number) => {
+      const database = this.mainWindow.historyDatabase;
+      const tracker = this.mainWindow.historyTracker;
+      if (!database) return null;
+
+      // Flush any pending interactions before fetching details
+      if (tracker) {
+        tracker.flushInteractions();
+      }
+
+      return {
+        interactions: database.getVisitInteractions(visitId),
+        screenshots: database.getVisitScreenshots(visitId),
+        snapshots: database.getVisitSnapshots(visitId),
+        scrollEvents: database.getVisitScrollEvents(visitId),
+      };
+    });
+
+    // Get interaction count for a visit
+    ipcMain.handle("history-get-interaction-count", (_, visitId: number) => {
+      const database = this.mainWindow.historyDatabase;
+      if (!database) return 0;
+      return database.getInteractionCount(visitId);
+    });
+
+    // Get all sessions
+    ipcMain.handle("history-get-sessions", () => {
+      const database = this.mainWindow.historyDatabase;
+      if (!database) return [];
+      return database.getAllSessions();
+    });
+
+    // Get session history
+    ipcMain.handle("history-get-session", (_, sessionId: number) => {
+      const database = this.mainWindow.historyDatabase;
+      if (!database) return null;
+      return database.getSessionHistory(sessionId);
+    });
+
+    // Get current session
+    ipcMain.handle("history-get-current-session", () => {
+      const database = this.mainWindow.historyDatabase;
+      if (!database) return null;
+      return database.getCurrentSession();
+    });
+
+    // Track interaction (called from injected scripts)
+    ipcMain.on(
+      "history-track-interaction",
+      (
+        _,
+        interaction: {
+          visitId: number;
+          type:
+            | "click"
+            | "input"
+            | "scroll"
+            | "select"
+            | "clipboard"
+            | "keypress";
+          selector?: string;
+          value?: string;
+          x?: number;
+          y?: number;
+          timestamp: number;
+        },
+      ) => {
+        const tracker = this.mainWindow.historyTracker;
+        if (tracker) {
+          tracker.recordInteraction(interaction);
+        }
+      },
+    );
+
+    // Get statistics
+    ipcMain.handle("history-get-stats", () => {
+      const database = this.mainWindow.historyDatabase;
+      if (!database) return { visitCount: 0 };
+      return {
+        visitCount: database.getVisitCount(),
+      };
+    });
+
+    // History settings
+    ipcMain.handle("history-settings-get", () => {
+      const settings = this.mainWindow.historySettings;
+      return settings?.toJSON() || null;
+    });
+
+    ipcMain.handle(
+      "history-settings-update",
+      (_, config: Record<string, unknown>) => {
+        const settings = this.mainWindow.historySettings;
+        if (settings) {
+          settings.fromJSON(config);
+          return true;
+        }
+        return false;
+      },
+    );
+
+    // Clear old history
+    ipcMain.handle("history-clear-old", (_, days: number) => {
+      const database = this.mainWindow.historyDatabase;
+      if (!database) return false;
+      database.deleteOldHistory(days);
+      return true;
+    });
+
+    // Workflow analysis
+    ipcMain.handle("workflow-analyze-session", async (_, sessionId: number) => {
+      const analyzer = this.mainWindow.workflowAnalyzer;
+      if (!analyzer) return null;
+      try {
+        const workflow = await analyzer.analyzeSession(sessionId);
+        // Transform to UI format
+        return {
+          id: `session-${sessionId}`,
+          summary: `${workflow.workflow_name}: ${workflow.description}`,
+          steps: workflow.steps.map((step) => ({
+            action: step.description,
+            target: step.selector || step.url,
+            value: step.value,
+            timestamp: Date.now(),
+          })),
+          repeatabilityScore: workflow.repeatability_score,
+          automationPotential: workflow.automation_potential,
+          urls: workflow.steps
+            .map((s) => s.url)
+            .filter((url): url is string => !!url),
+          sessionId: sessionId,
+        };
+      } catch (error) {
+        console.error("Failed to analyze workflow:", error);
+        return null;
+      }
+    });
+
+    ipcMain.handle(
+      "workflow-analyze-recent",
+      async (_, options?: { limit?: number }) => {
+        const analyzer = this.mainWindow.workflowAnalyzer;
+        if (!analyzer) return null;
+        try {
+          const workflow = await analyzer.analyzeRecentHistory(options?.limit);
+          // Transform to UI format
+          return {
+            id: `recent-${Date.now()}`,
+            summary: `${workflow.workflow_name}: ${workflow.description}`,
+            steps: workflow.steps.map((step) => ({
+              action: step.description,
+              target: step.selector || step.url,
+              value: step.value,
+              timestamp: Date.now(),
+            })),
+            repeatabilityScore: workflow.repeatability_score,
+            automationPotential: workflow.automation_potential,
+            urls: workflow.steps
+              .map((s) => s.url)
+              .filter((url): url is string => !!url),
+          };
+        } catch (error) {
+          console.error("Failed to analyze recent workflow:", error);
+          return null;
+        }
+      },
+    );
+
+    ipcMain.handle("workflow-get-cached", (_, sessionId: number) => {
+      const database = this.mainWindow.historyDatabase;
+      if (!database) return null;
+      return database.getWorkflowCache(sessionId);
     });
   }
 
