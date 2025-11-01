@@ -169,4 +169,12 @@ export class Panel {
   getIsVisible(): boolean {
     return this.isVisible;
   }
+
+  toggleDevTools(): void {
+    if (this.webContentsView.webContents.isDevToolsOpened()) {
+      this.webContentsView.webContents.closeDevTools();
+    } else {
+      this.webContentsView.webContents.openDevTools({ mode: "detach" });
+    }
+  }
 }

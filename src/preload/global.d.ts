@@ -4,11 +4,26 @@ import { SideBarAPI } from "./sidebar.d";
 import { TopBarAPI } from "./topbar.d";
 
 // Shared types
+export interface GroupColor {
+  id: string;
+  name: string;
+  hex: string;
+}
+
+export interface GroupInfo {
+  id: string;
+  title: string;
+  color: GroupColor;
+  isCollapsed: boolean;
+  position: number;
+}
+
 export interface TabInfo {
   id: string;
   title: string;
   url: string;
   isActive: boolean;
+  groupId: string | null;
 }
 
 // Generic browser API interface (shared between topbar and sidebar)
@@ -21,6 +36,26 @@ export interface BrowserAPI {
   switchTab: (tabId: string) => Promise<boolean>;
   reorderTabs: (orderedTabIds: string[]) => Promise<boolean>;
   getTabs: () => Promise<TabInfo[]>;
+
+  // Group management
+  createGroup: (title: string, colorId?: string) => Promise<GroupInfo>;
+  deleteGroup: (groupId: string) => Promise<boolean>;
+  updateGroup: (
+    groupId: string,
+    updates: { title?: string; colorId?: string; isCollapsed?: boolean },
+  ) => Promise<boolean>;
+  addTabToGroup: (tabId: string, groupId: string) => Promise<boolean>;
+  removeTabFromGroup: (tabId: string) => Promise<boolean>;
+  getGroups: () => Promise<GroupInfo[]>;
+  reorderGroups: (orderedGroupIds: string[]) => Promise<boolean>;
+  updateTabPositions: (orderedTabIds: string[]) => Promise<boolean>;
+  organizeTabs: () => Promise<
+    Array<{
+      groupName: string;
+      colorId: string;
+      tabIds: string[];
+    }>
+  >;
 
   // Tab navigation
   navigateTab: (tabId: string, url: string) => Promise<void>;

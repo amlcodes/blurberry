@@ -1,4 +1,4 @@
-import { BrowserAPI, TabInfo } from "@preload/global.d";
+import { BrowserAPI, GroupInfo, TabInfo } from "@preload/global.d";
 import React, {
   createContext,
   useCallback,
@@ -9,6 +9,7 @@ import React, {
 
 interface BrowserContextType {
   tabs: TabInfo[];
+  groups: GroupInfo[];
   activeTab: TabInfo | null;
   isLoading: boolean;
   isPanelVisible: boolean;
@@ -19,6 +20,21 @@ interface BrowserContextType {
   switchTab: (tabId: string) => Promise<void>;
   reorderTabs: (orderedTabIds: string[]) => Promise<void>;
   refreshTabs: () => Promise<void>;
+
+  // Group management
+  createGroup: (title: string, colorId?: string) => Promise<GroupInfo | null>;
+  deleteGroup: (groupId: string) => Promise<void>;
+  updateGroup: (
+    groupId: string,
+    updates: { title?: string; colorId?: string; isCollapsed?: boolean },
+  ) => Promise<void>;
+  addTabToGroup: (tabId: string, groupId: string) => Promise<void>;
+  removeTabFromGroup: (tabId: string) => Promise<void>;
+  refreshGroups: () => Promise<void>;
+  reorderGroups: (orderedGroupIds: string[]) => Promise<void>;
+  updateTabPositions: (orderedTabIds: string[]) => Promise<void>;
+  organizeTabs: () => Promise<void>;
+  isOrganizing: boolean;
 
   // Navigation
   navigateToUrl: (url: string) => Promise<void>;
@@ -55,6 +71,8 @@ export const BrowserProvider: React.FC<BrowserProviderProps> = ({
   api,
 }) => {
   const [tabs, setTabs] = useState<TabInfo[]>([]);
+  const [groups, setGroups] = useState<GroupInfo[]>([]);
+  const [isOrganizing, setIsOrganizing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isPanelVisible, setIsPanelVisible] = useState(true);
 
@@ -66,6 +84,15 @@ export const BrowserProvider: React.FC<BrowserProviderProps> = ({
       setTabs(tabsData);
     } catch (error) {
       console.error("Failed to refresh tabs:", error);
+    }
+  }, [api]);
+
+  const refreshGroups = useCallback(async () => {
+    try {
+      const groupsData = await api.getGroups();
+      setGroups(groupsData);
+    } catch (error) {
+      console.error("Failed to refresh groups:", error);
     }
   }, [api]);
 
@@ -231,29 +258,156 @@ export const BrowserProvider: React.FC<BrowserProviderProps> = ({
     api
       .getPanelVisibility()
       .then((isVisible) => {
-        console.log("[BrowserContext] Initial panel visibility:", isVisible);
         setIsPanelVisible(isVisible);
       })
       .catch(console.error);
   }, [api, refreshTabs]);
 
+  // Group management
+  const createGroup = useCallback(
+    async (title: string, colorId?: string): Promise<GroupInfo | null> => {
+      try {
+        const newGroup = await api.createGroup(title, colorId);
+        await refreshGroups();
+        return newGroup;
+      } catch (error) {
+        console.error("Failed to create group:", error);
+        return null;
+      }
+    },
+    [api, refreshGroups],
+  );
+
+  const deleteGroup = useCallback(
+    async (groupId: string) => {
+      try {
+        await api.deleteGroup(groupId);
+        await refreshGroups();
+        await refreshTabs(); // Refresh tabs to update their groupId
+      } catch (error) {
+        console.error("Failed to delete group:", error);
+      }
+    },
+    [api, refreshGroups, refreshTabs],
+  );
+
+  const updateGroup = useCallback(
+    async (
+      groupId: string,
+      updates: { title?: string; colorId?: string; isCollapsed?: boolean },
+    ) => {
+      try {
+        await api.updateGroup(groupId, updates);
+        await refreshGroups();
+      } catch (error) {
+        console.error("Failed to update group:", error);
+      }
+    },
+    [api, refreshGroups],
+  );
+
+  const addTabToGroup = useCallback(
+    async (tabId: string, groupId: string) => {
+      try {
+        await api.addTabToGroup(tabId, groupId);
+        await refreshTabs();
+      } catch (error) {
+        console.error("Failed to add tab to group:", error);
+      }
+    },
+    [api, refreshTabs],
+  );
+
+  const removeTabFromGroup = useCallback(
+    async (tabId: string) => {
+      try {
+        await api.removeTabFromGroup(tabId);
+        await refreshTabs();
+      } catch (error) {
+        console.error("Failed to remove tab from group:", error);
+      }
+    },
+    [api, refreshTabs],
+  );
+
+  const reorderGroups = useCallback(
+    async (orderedGroupIds: string[]) => {
+      try {
+        await api.reorderGroups(orderedGroupIds);
+        await refreshGroups();
+      } catch (error) {
+        console.error("Failed to reorder groups:", error);
+      }
+    },
+    [api, refreshGroups],
+  );
+
+  const updateTabPositions = useCallback(
+    async (orderedTabIds: string[]) => {
+      try {
+        await api.updateTabPositions(orderedTabIds);
+        await refreshTabs();
+      } catch (error) {
+        console.error("Failed to update tab positions:", error);
+      }
+    },
+    [api, refreshTabs],
+  );
+
+  const organizeTabs = useCallback(async () => {
+    setIsOrganizing(true);
+    try {
+      const suggestions = await api.organizeTabs();
+
+      for (const suggestion of suggestions) {
+        const newGroup = await createGroup(
+          suggestion.groupName,
+          suggestion.colorId,
+        );
+        if (newGroup) {
+          for (const tabId of suggestion.tabIds) {
+            await addTabToGroup(tabId, newGroup.id);
+          }
+        }
+      }
+
+      await refreshTabs();
+      await refreshGroups();
+    } catch (error) {
+      console.error("Failed to organize tabs:", error);
+      alert(
+        `Failed to organize tabs: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      setIsOrganizing(false);
+    }
+  }, [api, createGroup, addTabToGroup, refreshTabs, refreshGroups]);
+
   // Listen for panel visibility changes
   useEffect(() => {
     const cleanup = api.onPanelVisibilityChanged((isVisible) => {
-      console.log("[BrowserContext] Panel visibility changed to:", isVisible);
       setIsPanelVisible(isVisible);
     });
     return cleanup;
   }, [api]);
 
-  // Periodic refresh to keep tabs in sync
+  // Periodic refresh to keep tabs and groups in sync
   useEffect(() => {
-    const interval = setInterval(() => void refreshTabs(), 2000); // Refresh every 2 seconds
+    const interval = setInterval(() => {
+      void refreshTabs();
+      void refreshGroups();
+    }, 2000); // Refresh every 2 seconds
     return () => clearInterval(interval);
-  }, [refreshTabs]);
+  }, [refreshTabs, refreshGroups]);
+
+  // Initial load
+  useEffect(() => {
+    void refreshGroups();
+  }, [refreshGroups]);
 
   const value: BrowserContextType = {
     tabs,
+    groups,
     activeTab,
     isLoading,
     isPanelVisible,
@@ -262,6 +416,16 @@ export const BrowserProvider: React.FC<BrowserProviderProps> = ({
     switchTab,
     reorderTabs,
     refreshTabs,
+    createGroup,
+    deleteGroup,
+    updateGroup,
+    addTabToGroup,
+    removeTabFromGroup,
+    refreshGroups,
+    reorderGroups,
+    updateTabPositions,
+    organizeTabs,
+    isOrganizing,
     navigateToUrl,
     goBack,
     goForward,

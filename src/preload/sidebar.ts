@@ -14,6 +14,26 @@ const sideBarAPI = {
     electronAPI.ipcRenderer.invoke("reorder-tabs", orderedTabIds),
   getTabs: () => electronAPI.ipcRenderer.invoke("get-tabs"),
 
+  // Group management
+  createGroup: (title: string, colorId?: string) =>
+    electronAPI.ipcRenderer.invoke("create-group", title, colorId),
+  deleteGroup: (groupId: string) =>
+    electronAPI.ipcRenderer.invoke("delete-group", groupId),
+  updateGroup: (
+    groupId: string,
+    updates: { title?: string; colorId?: string; isCollapsed?: boolean },
+  ) => electronAPI.ipcRenderer.invoke("update-group", groupId, updates),
+  addTabToGroup: (tabId: string, groupId: string) =>
+    electronAPI.ipcRenderer.invoke("add-tab-to-group", tabId, groupId),
+  removeTabFromGroup: (tabId: string) =>
+    electronAPI.ipcRenderer.invoke("remove-tab-from-group", tabId),
+  getGroups: () => electronAPI.ipcRenderer.invoke("get-groups"),
+  reorderGroups: (orderedGroupIds: string[]) =>
+    electronAPI.ipcRenderer.invoke("reorder-groups", orderedGroupIds),
+  updateTabPositions: (orderedTabIds: string[]) =>
+    electronAPI.ipcRenderer.invoke("update-tab-positions", orderedTabIds),
+  organizeTabs: () => electronAPI.ipcRenderer.invoke("organize-tabs"),
+
   // Tab navigation
   navigateTab: (tabId: string, url: string) =>
     electronAPI.ipcRenderer.invoke("navigate-tab", tabId, url),
