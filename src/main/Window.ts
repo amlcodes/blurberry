@@ -328,6 +328,35 @@ export class Window {
     return this.tabsMap.get(tabId) || null;
   }
 
+  // Reorder tabs by providing new order of tab IDs
+  reorderTabs(orderedTabIds: string[]): boolean {
+    // Validate that all tab IDs exist
+    const currentTabIds = new Set(this.tabsMap.keys());
+    if (orderedTabIds.length !== currentTabIds.size) {
+      return false;
+    }
+
+    for (const tabId of orderedTabIds) {
+      if (!currentTabIds.has(tabId)) {
+        return false;
+      }
+    }
+
+    // Create new map with tabs in the new order
+    const newTabsMap = new Map<string, Tab>();
+    for (const tabId of orderedTabIds) {
+      const tab = this.tabsMap.get(tabId);
+      if (tab) {
+        newTabsMap.set(tabId, tab);
+      }
+    }
+
+    // Replace the old map with the new ordered map
+    this.tabsMap = newTabsMap;
+
+    return true;
+  }
+
   // Window methods
   show(): void {
     this._baseWindow.show();
@@ -501,6 +530,8 @@ export class Window {
       if (!this._topBar) {
         this._topBar = new TopBar(this._baseWindow);
       }
+      // Ensure topbar visibility is set
+      this._isTopBarVisible = true;
     } else {
       // Switch to sidebar layout
       if (this._topBar) {
@@ -510,14 +541,19 @@ export class Window {
       if (!this._sideBar) {
         this._sideBar = new SideBar(this._baseWindow);
       }
+      // Ensure sidebar visibility is set
+      this._isSideBarVisible = true;
     }
 
     // Update panel layout mode
     this._panel.setLayoutMode(mode);
 
     // Update all bounds after layout switch
-    this.updateTabBounds();
-    this._panel.updateBounds();
+    // Use setTimeout to ensure the sidebar/topbar is fully initialized
+    setTimeout(() => {
+      this.updateTabBounds();
+      this._panel.updateBounds();
+    }, 0);
   }
 
   // Toggle between topbar and sidebar layouts

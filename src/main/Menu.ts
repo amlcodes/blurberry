@@ -116,7 +116,8 @@ export class AppMenu {
 
   // Menu action handlers
   private handleNewTab(): void {
-    this.mainWindow.createTab("https://www.google.com");
+    const newTab = this.mainWindow.createTab("https://www.google.com");
+    this.mainWindow.switchActiveTab(newTab.id);
   }
 
   private handleCloseTab(): void {

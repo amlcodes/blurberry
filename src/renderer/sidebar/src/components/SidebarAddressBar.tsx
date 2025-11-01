@@ -1,34 +1,13 @@
-import { DarkModeToggle } from "@common/components/DarkModeToggle";
 import { Favicon } from "@common/components/Favicon";
-import { ToolBarButton } from "@common/components/ToolBarButton";
 import { useBrowser } from "@common/contexts/BrowserContext";
 import { cn, getFavicon } from "@common/lib/utils";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Loader2,
-  PanelRight,
-  PanelRightClose,
-  RefreshCw,
-} from "lucide-react";
+import { RefreshCw, X } from "lucide-react";
 import React, { useState } from "react";
 
-export const AddressBar: React.FC = () => {
-  const {
-    activeTab,
-    navigateToUrl,
-    goBack,
-    goForward,
-    reload,
-    isLoading,
-    isPanelVisible,
-    togglePanel,
-  } = useBrowser();
+export const SidebarAddressBar: React.FC = () => {
+  const { activeTab, navigateToUrl, isLoading, reload, stop } = useBrowser();
   const [editedUrl, setEditedUrl] = useState("");
   const [isFocused, setIsFocused] = useState(false);
-
-  // Debug log for panel visibility
-  console.log("[AddressBar] isPanelVisible:", isPanelVisible);
 
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
@@ -60,7 +39,6 @@ export const AddressBar: React.FC = () => {
 
   const handleBlur = (): void => {
     setIsFocused(false);
-    // No need to reset - we switch back to showing activeTab.url automatically
   };
 
   const handleKeyDown = (e: React.KeyboardEvent): void => {
@@ -70,10 +48,6 @@ export const AddressBar: React.FC = () => {
     }
   };
 
-  const canGoBack = activeTab !== null;
-  const canGoForward = activeTab !== null;
-
-  // Extract domain and title for display
   const getDomain = (): string => {
     if (!activeTab?.url) return "";
     try {
@@ -94,36 +68,20 @@ export const AddressBar: React.FC = () => {
     }
   };
 
-  return (
-    <>
-      {/* Navigation Controls */}
-      <div className="flex gap-1.5 app-region-no-drag">
-        <ToolBarButton
-          Icon={ArrowLeft}
-          onClick={() => void goBack()}
-          active={canGoBack && !isLoading}
-        />
-        <ToolBarButton
-          Icon={ArrowRight}
-          onClick={() => void goForward()}
-          active={canGoForward && !isLoading}
-        />
-        <ToolBarButton
-          onClick={() => void reload()}
-          active={activeTab !== null && !isLoading}
-        >
-          {isLoading ? (
-            <Loader2 className="size-4.5 animate-spin" />
-          ) : (
-            <RefreshCw className="size-4.5" />
-          )}
-        </ToolBarButton>
-      </div>
+  const handleRefreshOrStop = (): void => {
+    if (isLoading) {
+      void stop();
+    } else {
+      void reload();
+    }
+  };
 
+  return (
+    <div className="flex items-center gap-2 app-region-no-drag px-3">
       {/* Address Bar */}
       {isFocused ? (
         // Expanded State
-        <form onSubmit={handleSubmit} className="flex-1 min-w-0 max-w-full">
+        <form onSubmit={handleSubmit} className="flex-1 min-w-0">
           <div className="bg-background rounded-lg shadow-md p-1 dark:bg-secondary">
             <input
               type="text"
@@ -147,34 +105,34 @@ export const AddressBar: React.FC = () => {
         <div
           onClick={handleFocus}
           className={cn(
-            "flex-1 px-3 h-8 rounded-md cursor-text group/address-bar",
+            "flex-1 min-w-0 px-2 h-8 rounded-md cursor-text group/address-bar",
             "hover:bg-muted text-muted-foreground app-region-no-drag",
             "transition-colors duration-200",
             "dark:hover:bg-muted/50",
           )}
         >
-          <div className="flex h-full items-center">
+          <div className="flex h-full items-center gap-2">
             {/* Favicon */}
-            <div className="size-6 mr-2">
+            <div className="size-4 shrink-0">
               <Favicon
                 src={activeTab?.url ? getFavicon(activeTab.url) : null}
               />
             </div>
 
             {/* URL Display */}
-            <div className="text-[0.8rem] leading-normal truncate flex-1">
+            <div className="text-xs leading-normal overflow-hidden flex-1 min-w-0">
               {activeTab ? (
-                <>
-                  <span className="text-foreground dark:text-foreground">
+                <div className="flex flex-col">
+                  <span className="text-foreground dark:text-foreground truncate block">
                     {getDomain()}
                   </span>
-                  <span className="group-hover/address-bar:hidden text-muted-foreground/60">
-                    {activeTab.title && ` / ${activeTab.title}`}
+                  <span className="text-muted-foreground/60 text-[0.7rem] truncate block group-hover/address-bar:hidden">
+                    {activeTab.title || "New Tab"}
                   </span>
-                  <span className="group-hover/address-bar:inline hidden text-muted-foreground/60">
+                  <span className="text-muted-foreground/60 text-[0.7rem] truncate hidden group-hover/address-bar:block">
                     {getPath()}
                   </span>
-                </>
+                </div>
               ) : (
                 <span className="text-muted-foreground">No active tab</span>
               )}
@@ -183,16 +141,26 @@ export const AddressBar: React.FC = () => {
         </div>
       )}
 
-      {/* Actions Menu */}
-      <div className="flex items-center gap-1 app-region-no-drag">
-        <DarkModeToggle />
-        {/* Panel toggle button - shows different icon based on panel state */}
-        <ToolBarButton
-          Icon={isPanelVisible ? PanelRightClose : PanelRight}
-          onClick={() => void togglePanel()}
-          toggled={isPanelVisible}
-        />
-      </div>
-    </>
+      {/* Refresh/Stop Button */}
+      <button
+        onClick={handleRefreshOrStop}
+        disabled={!activeTab}
+        className={cn(
+          "shrink-0 size-8 flex items-center justify-center rounded-md",
+          "transition-colors duration-200",
+          activeTab && !isLoading
+            ? "hover:bg-muted dark:hover:bg-muted/50 text-primary"
+            : "",
+          !activeTab && "opacity-50 cursor-not-allowed",
+        )}
+        title={isLoading ? "Stop loading" : "Reload"}
+      >
+        {isLoading ? (
+          <X className="size-4" />
+        ) : (
+          <RefreshCw className="size-4" />
+        )}
+      </button>
+    </div>
   );
 };

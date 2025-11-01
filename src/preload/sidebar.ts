@@ -10,6 +10,8 @@ const sideBarAPI = {
     electronAPI.ipcRenderer.invoke("close-tab", tabId),
   switchTab: (tabId: string) =>
     electronAPI.ipcRenderer.invoke("switch-tab", tabId),
+  reorderTabs: (orderedTabIds: string[]) =>
+    electronAPI.ipcRenderer.invoke("reorder-tabs", orderedTabIds),
   getTabs: () => electronAPI.ipcRenderer.invoke("get-tabs"),
 
   // Tab navigation
@@ -21,6 +23,7 @@ const sideBarAPI = {
     electronAPI.ipcRenderer.invoke("tab-go-forward", tabId),
   reload: (tabId: string) =>
     electronAPI.ipcRenderer.invoke("tab-reload", tabId),
+  stop: (tabId: string) => electronAPI.ipcRenderer.invoke("tab-stop", tabId),
 
   // Tab actions
   tabScreenshot: (tabId: string) =>

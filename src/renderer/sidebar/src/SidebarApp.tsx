@@ -57,15 +57,15 @@ export const SideBarApp: React.FC = () => {
   return (
     <BrowserProvider api={window.sideBarAPI}>
       <div className="h-full w-full flex flex-row bg-background select-none relative">
-        <div className="flex-1 flex flex-col border-r border-border dark:border-border">
+        <div className="flex-1 flex flex-col border-r border-border dark:border-border min-w-0">
           {/* macOS traffic lights spacing at top */}
-          <div className="h-14 app-region-drag shrink-0" />
+          {/* <div className="h-1 app-region-drag shrink-0" /> */}
 
           {/* Toolbar with navigation controls */}
           <SidebarToolbar />
 
           {/* Vertical Tab Bar */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="flex-1 overflow-hidden w-full min-w-0">
             <VerticalTabBar />
           </div>
         </div>

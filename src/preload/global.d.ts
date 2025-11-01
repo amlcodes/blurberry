@@ -19,6 +19,7 @@ export interface BrowserAPI {
   ) => Promise<{ id: string; title: string; url: string } | null>;
   closeTab: (tabId: string) => Promise<boolean>;
   switchTab: (tabId: string) => Promise<boolean>;
+  reorderTabs: (orderedTabIds: string[]) => Promise<boolean>;
   getTabs: () => Promise<TabInfo[]>;
 
   // Tab navigation
@@ -26,6 +27,7 @@ export interface BrowserAPI {
   goBack: (tabId: string) => Promise<void>;
   goForward: (tabId: string) => Promise<void>;
   reload: (tabId: string) => Promise<void>;
+  stop: (tabId: string) => Promise<void>;
 
   // Tab actions
   tabScreenshot: (tabId: string) => Promise<string | null>;

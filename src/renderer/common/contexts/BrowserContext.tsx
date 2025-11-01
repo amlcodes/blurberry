@@ -17,6 +17,7 @@ interface BrowserContextType {
   createTab: (url?: string) => Promise<void>;
   closeTab: (tabId: string) => Promise<void>;
   switchTab: (tabId: string) => Promise<void>;
+  reorderTabs: (orderedTabIds: string[]) => Promise<void>;
   refreshTabs: () => Promise<void>;
 
   // Navigation
@@ -24,6 +25,7 @@ interface BrowserContextType {
   goBack: () => Promise<void>;
   goForward: () => Promise<void>;
   reload: () => Promise<void>;
+  stop: () => Promise<void>;
 
   // Tab actions
   takeScreenshot: (tabId: string) => Promise<string | null>;
@@ -71,7 +73,11 @@ export const BrowserProvider: React.FC<BrowserProviderProps> = ({
     async (url?: string) => {
       setIsLoading(true);
       try {
-        await api.createTab(url);
+        const newTab = await api.createTab(url);
+        if (newTab) {
+          // Switch to the newly created tab
+          await api.switchTab(newTab.id);
+        }
         await refreshTabs();
       } catch (error) {
         console.error("Failed to create tab:", error);
@@ -107,6 +113,18 @@ export const BrowserProvider: React.FC<BrowserProviderProps> = ({
         console.error("Failed to switch tab:", error);
       } finally {
         setIsLoading(false);
+      }
+    },
+    [api, refreshTabs],
+  );
+
+  const reorderTabs = useCallback(
+    async (orderedTabIds: string[]) => {
+      try {
+        await api.reorderTabs(orderedTabIds);
+        await refreshTabs();
+      } catch (error) {
+        console.error("Failed to reorder tabs:", error);
       }
     },
     [api, refreshTabs],
@@ -162,6 +180,16 @@ export const BrowserProvider: React.FC<BrowserProviderProps> = ({
       console.error("Failed to reload:", error);
     }
   }, [activeTab, api, refreshTabs]);
+
+  const stop = useCallback(async () => {
+    if (!activeTab) return;
+
+    try {
+      await api.stop(activeTab.id);
+    } catch (error) {
+      console.error("Failed to stop:", error);
+    }
+  }, [activeTab, api]);
 
   const takeScreenshot = useCallback(
     async (tabId: string) => {
@@ -232,11 +260,13 @@ export const BrowserProvider: React.FC<BrowserProviderProps> = ({
     createTab,
     closeTab,
     switchTab,
+    reorderTabs,
     refreshTabs,
     navigateToUrl,
     goBack,
     goForward,
     reload,
+    stop,
     takeScreenshot,
     runJavaScript,
     togglePanel,

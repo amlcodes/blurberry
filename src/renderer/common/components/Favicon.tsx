@@ -17,7 +17,7 @@ export const Favicon: React.FC<FaviconProps> = ({ src, size = 16 }) => {
     <img
       src={src}
       alt="favicon"
-      className="size-full"
+      className="w-full h-full object-contain"
       onError={() => setHasError(true)}
     />
   );

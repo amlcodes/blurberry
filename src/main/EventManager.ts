@@ -46,6 +46,11 @@ export class EventManager {
       this.mainWindow.switchActiveTab(id);
     });
 
+    // Reorder tabs
+    ipcMain.handle("reorder-tabs", (_, orderedTabIds: string[]) => {
+      return this.mainWindow.reorderTabs(orderedTabIds);
+    });
+
     // Get tabs
     ipcMain.handle("get-tabs", () => {
       const activeTabId = this.mainWindow.activeTab?.id;
@@ -91,6 +96,12 @@ export class EventManager {
       }
     });
 
+    ipcMain.handle("stop", () => {
+      if (this.mainWindow.activeTab) {
+        this.mainWindow.activeTab.stop();
+      }
+    });
+
     // Tab-specific navigation handlers
     ipcMain.handle("tab-go-back", (_, tabId: string) => {
       const tab = this.mainWindow.getTab(tabId);
@@ -114,6 +125,15 @@ export class EventManager {
       const tab = this.mainWindow.getTab(tabId);
       if (tab) {
         tab.reload();
+        return true;
+      }
+      return false;
+    });
+
+    ipcMain.handle("tab-stop", (_, tabId: string) => {
+      const tab = this.mainWindow.getTab(tabId);
+      if (tab) {
+        tab.stop();
         return true;
       }
       return false;
@@ -303,6 +323,17 @@ export class EventManager {
       this.mainWindow.topBar.view.webContents !== sender
     ) {
       this.mainWindow.topBar.view.webContents.send(
+        "dark-mode-updated",
+        isDarkMode,
+      );
+    }
+
+    // Send to sidebar
+    if (
+      this.mainWindow.sideBar &&
+      this.mainWindow.sideBar.view.webContents !== sender
+    ) {
+      this.mainWindow.sideBar.view.webContents.send(
         "dark-mode-updated",
         isDarkMode,
       );
