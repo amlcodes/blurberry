@@ -13,6 +13,9 @@ export class EventManager {
     // Tab management events
     this.handleTabEvents();
 
+    // Panel events
+    this.handlePanelEvents();
+
     // Sidebar events
     this.handleSidebarEvents();
 
@@ -41,6 +44,11 @@ export class EventManager {
     // Switch tab
     ipcMain.handle("switch-tab", (_, id: string) => {
       this.mainWindow.switchActiveTab(id);
+    });
+
+    // Reorder tabs
+    ipcMain.handle("reorder-tabs", (_, orderedTabIds: string[]) => {
+      return this.mainWindow.reorderTabs(orderedTabIds);
     });
 
     // Get tabs
@@ -88,6 +96,12 @@ export class EventManager {
       }
     });
 
+    ipcMain.handle("stop", () => {
+      if (this.mainWindow.activeTab) {
+        this.mainWindow.activeTab.stop();
+      }
+    });
+
     // Tab-specific navigation handlers
     ipcMain.handle("tab-go-back", (_, tabId: string) => {
       const tab = this.mainWindow.getTab(tabId);
@@ -111,6 +125,15 @@ export class EventManager {
       const tab = this.mainWindow.getTab(tabId);
       if (tab) {
         tab.reload();
+        return true;
+      }
+      return false;
+    });
+
+    ipcMain.handle("tab-stop", (_, tabId: string) => {
+      const tab = this.mainWindow.getTab(tabId);
+      if (tab) {
+        tab.stop();
         return true;
       }
       return false;
@@ -149,44 +172,99 @@ export class EventManager {
     });
   }
 
-  private handleSidebarEvents(): void {
-    // Toggle sidebar
-    ipcMain.handle("toggle-sidebar", () => {
-      this.mainWindow.sidebar.toggle();
+  private handlePanelEvents(): void {
+    // Toggle panel
+    ipcMain.handle("toggle-panel", () => {
+      this.mainWindow.panel.toggle();
       this.mainWindow.updateAllBounds();
-      // Notify TopBar and Sidebar of visibility change
-      const isVisible = this.mainWindow.sidebar.getIsVisible();
-      this.mainWindow.topBar.view.webContents.send(
-        "sidebar-visibility-changed",
-        isVisible,
-      );
-      this.mainWindow.sidebar.view.webContents.send(
-        "sidebar-visibility-changed",
+      // Notify TopBar and Panel of visibility change
+      const isVisible = this.mainWindow.panel.getIsVisible();
+      if (this.mainWindow.topBar) {
+        this.mainWindow.topBar.view.webContents.send(
+          "panel-visibility-changed",
+          isVisible,
+        );
+      }
+      this.mainWindow.panel.view.webContents.send(
+        "panel-visibility-changed",
         isVisible,
       );
       return isVisible;
     });
 
-    // Get sidebar visibility state
-    ipcMain.handle("get-sidebar-visibility", () => {
-      return this.mainWindow.sidebar.getIsVisible();
+    // Get panel visibility state
+    ipcMain.handle("get-panel-visibility", () => {
+      return this.mainWindow.panel.getIsVisible();
     });
 
     // Chat message
-    ipcMain.handle("sidebar-chat-message", async (_, request) => {
+    ipcMain.handle("panel-chat-message", async (_, request) => {
       // The LLMClient now handles getting the screenshot and context directly
-      await this.mainWindow.sidebar.client.sendChatMessage(request);
+      await this.mainWindow.panel.client.sendChatMessage(request);
     });
 
     // Clear chat
-    ipcMain.handle("sidebar-clear-chat", () => {
-      this.mainWindow.sidebar.client.clearMessages();
+    ipcMain.handle("panel-clear-chat", () => {
+      this.mainWindow.panel.client.clearMessages();
       return true;
     });
 
     // Get messages
-    ipcMain.handle("sidebar-get-messages", () => {
-      return this.mainWindow.sidebar.client.getMessages();
+    ipcMain.handle("panel-get-messages", () => {
+      return this.mainWindow.panel.client.getMessages();
+    });
+  }
+
+  private handleSidebarEvents(): void {
+    // Resize sidebar
+    ipcMain.handle("resize-sidebar", (_, width: number) => {
+      this.mainWindow.resizeSidebar(width);
+      return true;
+    });
+
+    // Get sidebar width
+    ipcMain.handle("get-sidebar-width", () => {
+      return this.mainWindow.sideBar?.width || 240;
+    });
+
+    // Toggle topbar visibility
+    ipcMain.handle("toggle-topbar-visibility", () => {
+      this.mainWindow.toggleTopBarVisibility();
+      return this.mainWindow.isTopBarVisible;
+    });
+
+    // Toggle sidebar visibility
+    ipcMain.handle("toggle-sidebar-visibility", () => {
+      this.mainWindow.toggleSideBarVisibility();
+      return this.mainWindow.isSideBarVisible;
+    });
+
+    // Get topbar visibility
+    ipcMain.handle("get-topbar-visibility", () => {
+      return this.mainWindow.isTopBarVisible;
+    });
+
+    // Get sidebar visibility
+    ipcMain.handle("get-sidebar-visibility", () => {
+      return this.mainWindow.isSideBarVisible;
+    });
+
+    // Show/hide topbar temporarily (for hover detection)
+    ipcMain.handle("show-topbar-temporarily", () => {
+      this.mainWindow.showTopBarTemporarily();
+    });
+
+    ipcMain.handle("hide-topbar-temporarily", () => {
+      this.mainWindow.hideTopBarTemporarily();
+    });
+
+    // Show/hide sidebar temporarily (for hover detection)
+    ipcMain.handle("show-sidebar-temporarily", () => {
+      this.mainWindow.showSideBarTemporarily();
+    });
+
+    ipcMain.handle("hide-sidebar-temporarily", () => {
+      this.mainWindow.hideSideBarTemporarily();
     });
   }
 
@@ -240,7 +318,10 @@ export class EventManager {
 
   private broadcastDarkMode(sender: WebContents, isDarkMode: boolean): void {
     // Send to topbar
-    if (this.mainWindow.topBar.view.webContents !== sender) {
+    if (
+      this.mainWindow.topBar &&
+      this.mainWindow.topBar.view.webContents !== sender
+    ) {
       this.mainWindow.topBar.view.webContents.send(
         "dark-mode-updated",
         isDarkMode,
@@ -248,8 +329,19 @@ export class EventManager {
     }
 
     // Send to sidebar
-    if (this.mainWindow.sidebar.view.webContents !== sender) {
-      this.mainWindow.sidebar.view.webContents.send(
+    if (
+      this.mainWindow.sideBar &&
+      this.mainWindow.sideBar.view.webContents !== sender
+    ) {
+      this.mainWindow.sideBar.view.webContents.send(
+        "dark-mode-updated",
+        isDarkMode,
+      );
+    }
+
+    // Send to panel
+    if (this.mainWindow.panel.view.webContents !== sender) {
+      this.mainWindow.panel.view.webContents.send(
         "dark-mode-updated",
         isDarkMode,
       );

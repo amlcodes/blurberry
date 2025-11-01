@@ -1,15 +1,16 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { openai } from "@ai-sdk/openai";
-import { streamText, type LanguageModel, type ModelMessage } from "ai";
+import {
+  convertToModelMessages,
+  generateId,
+  streamText,
+  type LanguageModel,
+  type UIMessage,
+} from "ai";
 import { WebContents } from "electron";
-// import * as dotenv from "dotenv";
-// import { join } from "path";
 import type { Window } from "./Window";
 
-// Load environment variables from .env file
-// dotenv.config({ path: join(__dirname, "../../.env") });
-
-import type { ChatRequest } from "../preload/sidebar.d";
+import type { ChatRequest } from "../preload/panel.d";
 
 interface StreamChunk {
   content: string;
@@ -32,7 +33,7 @@ export class LLMClient {
   private readonly provider: LLMProvider;
   private readonly modelName: string;
   private readonly model: LanguageModel | null;
-  private messages: ModelMessage[] = [];
+  private messages: UIMessage[] = [];
 
   constructor(webContents: WebContents) {
     this.webContents = webContents;
@@ -50,6 +51,7 @@ export class LLMClient {
 
   private getProvider(): LLMProvider {
     const provider = process.env.LLM_PROVIDER?.toLowerCase();
+    console.log("LLM_PROVIDER", provider);
     if (provider === "anthropic") return "anthropic";
     return "openai"; // Default to OpenAI
   }
@@ -115,6 +117,7 @@ export class LLMClient {
       }
 
       // Build user message content with screenshot first, then text
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const userContent: any[] = [];
 
       // Add screenshot as the first part if available
@@ -131,10 +134,14 @@ export class LLMClient {
         text: request.message,
       });
 
-      // Create user message in ModelMessage format
-      const userMessage: ModelMessage = {
+      // Create user message in UIMessage format
+      const userMessage: UIMessage = {
+        id: generateId(),
         role: "user",
-        content: userContent.length === 1 ? request.message : userContent,
+        parts:
+          userContent.length === 1
+            ? [{ type: "text" as const, text: request.message }]
+            : userContent,
       };
 
       this.messages.push(userMessage);
@@ -150,7 +157,7 @@ export class LLMClient {
         return;
       }
 
-      const messages = await this.prepareMessagesWithContext(request);
+      const messages = await this.prepareMessagesWithContext();
       await this.streamResponse(messages, request.messageId);
     } catch (error) {
       console.error("Error in LLM request:", error);
@@ -163,7 +170,7 @@ export class LLMClient {
     this.sendMessagesToRenderer();
   }
 
-  getMessages(): ModelMessage[] {
+  getMessages(): UIMessage[] {
     return this.messages;
   }
 
@@ -171,9 +178,7 @@ export class LLMClient {
     this.webContents.send("chat-messages-updated", this.messages);
   }
 
-  private async prepareMessagesWithContext(
-    _request: ChatRequest,
-  ): Promise<ModelMessage[]> {
+  private async prepareMessagesWithContext(): Promise<UIMessage[]> {
     // Get page context from active tab
     let pageUrl: string | null = null;
     let pageText: string | null = null;
@@ -190,10 +195,16 @@ export class LLMClient {
       }
     }
 
-    // Build system message
-    const systemMessage: ModelMessage = {
+    // Build system message in UIMessage format
+    const systemMessage: UIMessage = {
+      id: generateId(),
       role: "system",
-      content: this.buildSystemPrompt(pageUrl, pageText),
+      parts: [
+        {
+          type: "text" as const,
+          text: this.buildSystemPrompt(pageUrl, pageText),
+        },
+      ],
     };
 
     // Include all messages in history (system + conversation)
@@ -233,16 +244,19 @@ export class LLMClient {
   }
 
   private async streamResponse(
-    messages: ModelMessage[],
+    messages: UIMessage[],
     messageId: string,
   ): Promise<void> {
     if (!this.model) {
       throw new Error("Model not initialized");
     }
 
+    // Convert UIMessage to ModelMessage for the language model
+    const modelMessages = convertToModelMessages(messages);
+
     const result = streamText({
       model: this.model,
-      messages,
+      messages: modelMessages,
       temperature: DEFAULT_TEMPERATURE,
       maxRetries: 3,
       abortSignal: undefined, // Could add abort controller for cancellation
@@ -257,10 +271,15 @@ export class LLMClient {
   ): Promise<void> {
     let accumulatedText = "";
 
-    // Create a placeholder assistant message
-    const assistantMessage: ModelMessage = {
+    // Create a placeholder assistant message in UIMessage format
+    const assistantMessageId = generateId();
+    const assistantMessage: UIMessage = {
+      id: assistantMessageId,
       role: "assistant",
-      content: "",
+      parts: [{ type: "text" as const, text: "" }],
+      metadata: {
+        isStreaming: true,
+      },
     };
 
     // Keep track of the index for updates
@@ -270,10 +289,14 @@ export class LLMClient {
     for await (const chunk of textStream) {
       accumulatedText += chunk;
 
-      // Update assistant message content
+      // Update assistant message content (still streaming)
       this.messages[messageIndex] = {
+        id: assistantMessageId,
         role: "assistant",
-        content: accumulatedText,
+        parts: [{ type: "text" as const, text: accumulatedText }],
+        metadata: {
+          isStreaming: true,
+        },
       };
       this.sendMessagesToRenderer();
 
@@ -283,10 +306,14 @@ export class LLMClient {
       });
     }
 
-    // Final update with complete content
+    // Final update with complete content (not streaming anymore)
     this.messages[messageIndex] = {
+      id: assistantMessageId,
       role: "assistant",
-      content: accumulatedText,
+      parts: [{ type: "text" as const, text: accumulatedText }],
+      metadata: {
+        isStreaming: false,
+      },
     };
     this.sendMessagesToRenderer();
 

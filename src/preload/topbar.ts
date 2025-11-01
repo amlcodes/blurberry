@@ -10,6 +10,8 @@ const topBarAPI = {
     electronAPI.ipcRenderer.invoke("close-tab", tabId),
   switchTab: (tabId: string) =>
     electronAPI.ipcRenderer.invoke("switch-tab", tabId),
+  reorderTabs: (orderedTabIds: string[]) =>
+    electronAPI.ipcRenderer.invoke("reorder-tabs", orderedTabIds),
   getTabs: () => electronAPI.ipcRenderer.invoke("get-tabs"),
 
   // Tab navigation
@@ -21,6 +23,7 @@ const topBarAPI = {
     electronAPI.ipcRenderer.invoke("tab-go-forward", tabId),
   reload: (tabId: string) =>
     electronAPI.ipcRenderer.invoke("tab-reload", tabId),
+  stop: (tabId: string) => electronAPI.ipcRenderer.invoke("tab-stop", tabId),
 
   // Tab actions
   tabScreenshot: (tabId: string) =>
@@ -28,20 +31,30 @@ const topBarAPI = {
   tabRunJs: (tabId: string, code: string) =>
     electronAPI.ipcRenderer.invoke("tab-run-js", tabId, code),
 
-  // Sidebar
-  toggleSidebar: () => electronAPI.ipcRenderer.invoke("toggle-sidebar"),
-  getSidebarVisibility: () =>
-    electronAPI.ipcRenderer.invoke("get-sidebar-visibility"),
-  onSidebarVisibilityChanged: (callback: (isVisible: boolean) => void) => {
+  // Panel
+  togglePanel: () => electronAPI.ipcRenderer.invoke("toggle-panel"),
+  getPanelVisibility: () =>
+    electronAPI.ipcRenderer.invoke("get-panel-visibility"),
+  onPanelVisibilityChanged: (callback: (isVisible: boolean) => void) => {
     electronAPI.ipcRenderer.on(
-      "sidebar-visibility-changed",
+      "panel-visibility-changed",
       (_, isVisible: boolean) => callback(isVisible),
     );
     // Return cleanup function
     return () => {
-      electronAPI.ipcRenderer.removeAllListeners("sidebar-visibility-changed");
+      electronAPI.ipcRenderer.removeAllListeners("panel-visibility-changed");
     };
   },
+
+  // TopBar visibility (auto-hide)
+  showBarTemporarily: () =>
+    electronAPI.ipcRenderer.invoke("show-topbar-temporarily"),
+  hideBarTemporarily: () =>
+    electronAPI.ipcRenderer.invoke("hide-topbar-temporarily"),
+  getBarVisibility: () =>
+    electronAPI.ipcRenderer.invoke("get-topbar-visibility"),
+  toggleBarVisibility: () =>
+    electronAPI.ipcRenderer.invoke("toggle-topbar-visibility"),
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to

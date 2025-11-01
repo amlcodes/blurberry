@@ -5,6 +5,8 @@ import { join } from "path";
 export class TopBar {
   private webContentsView: WebContentsView;
   private baseWindow: BaseWindow;
+  private readonly HEIGHT = 88; // Fixed height for topbar
+  private _isVisible: boolean = true;
 
   constructor(baseWindow: BaseWindow) {
     this.baseWindow = baseWindow;
@@ -42,11 +44,12 @@ export class TopBar {
 
   private setupBounds(): void {
     const bounds = this.baseWindow.getBounds();
+    const yOffset = this._isVisible ? 0 : -this.HEIGHT;
     this.webContentsView.setBounds({
       x: 0,
-      y: 0,
+      y: yOffset,
       width: bounds.width,
-      height: 88, // Fixed height for topbar (40px tabs + 48px address bar)
+      height: this.HEIGHT,
     });
   }
 
@@ -56,5 +59,64 @@ export class TopBar {
 
   get view(): WebContentsView {
     return this.webContentsView;
+  }
+
+  // Hide with animation
+  hide(): void {
+    this._isVisible = false;
+    this.animatePosition(0, -this.HEIGHT);
+  }
+
+  // Show with animation
+  show(): void {
+    this._isVisible = true;
+    this.animatePosition(-this.HEIGHT, 0);
+  }
+
+  // Show temporarily (on hover)
+  showTemporarily(): void {
+    this.animatePosition(-this.HEIGHT, 0);
+  }
+
+  // Hide temporarily (on mouse leave)
+  hideTemporarily(): void {
+    this.animatePosition(0, -this.HEIGHT);
+  }
+
+  // Smooth animation for position changes
+  private animatePosition(fromY: number, toY: number): void {
+    const bounds = this.baseWindow.getBounds();
+    const duration = 200; // ms
+    const startTime = Date.now();
+
+    const animate = (): void => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      if (progress >= 1) {
+        this.webContentsView.setBounds({
+          x: 0,
+          y: toY,
+          width: bounds.width,
+          height: this.HEIGHT,
+        });
+        return;
+      }
+
+      // Ease-out cubic
+      const easedProgress = 1 - Math.pow(1 - progress, 3);
+      const currentY = fromY + (toY - fromY) * easedProgress;
+
+      this.webContentsView.setBounds({
+        x: 0,
+        y: Math.round(currentY),
+        width: bounds.width,
+        height: this.HEIGHT,
+      });
+
+      setTimeout(animate, 16); // ~60fps
+    };
+
+    animate();
   }
 }

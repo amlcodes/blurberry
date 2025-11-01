@@ -1,65 +1,86 @@
-import { useDarkMode } from "@common/hooks/useDarkMode";
-import { motion } from "motion/react";
-import React, { useEffect, useState } from "react";
-import { Chat } from "./components/Chat";
-import { ChatProvider } from "./contexts/ChatContext";
+import { BrowserProvider } from "@common/contexts/BrowserContext";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { SidebarToolbar } from "./components/SidebarToolbar";
+import { VerticalTabBar } from "./components/VerticalTabBar";
 
-const SidebarContent: React.FC<{ isVisible: boolean }> = ({ isVisible }) => {
-  const { isDarkMode } = useDarkMode();
+export const SideBarApp: React.FC = () => {
+  const [isResizing, setIsResizing] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(240);
+  const resizeStartXRef = useRef(0);
+  const resizeStartWidthRef = useRef(240);
 
-  // Apply dark mode class to the document
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [isDarkMode]);
+    // Get initial sidebar width
+    const getInitialWidth = async (): Promise<void> => {
+      const width = await window.sideBarAPI.getSidebarWidth();
+      setSidebarWidth(width);
+    };
+    void getInitialWidth();
+  }, []);
 
-  return (
-    <motion.div
-      className="h-screen flex flex-col bg-background border-l border-border"
-      initial={false}
-      animate={{
-        x: isVisible ? 0 : 400,
-        opacity: isVisible ? 1 : 0,
-      }}
-      transition={{
-        type: "spring",
-        stiffness: 260,
-        damping: 30,
-        mass: 1,
-      }}
-    >
-      <Chat />
-    </motion.div>
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      setIsResizing(true);
+      resizeStartXRef.current = e.clientX;
+      resizeStartWidthRef.current = sidebarWidth;
+      e.preventDefault();
+    },
+    [sidebarWidth],
   );
-};
 
-export const SidebarApp: React.FC = () => {
-  const [isVisible, setIsVisible] = useState(true);
-
-  // Initialize sidebar visibility on mount
   useEffect(() => {
-    window.sidebarAPI
-      .getSidebarVisibility()
-      .then((visible) => {
-        setIsVisible(visible);
-      })
-      .catch(console.error);
-  }, []);
+    if (!isResizing) return;
 
-  // Listen for sidebar visibility changes
-  useEffect(() => {
-    const cleanup = window.sidebarAPI.onSidebarVisibilityChanged((visible) => {
-      setIsVisible(visible);
-    });
-    return cleanup;
-  }, []);
+    const handleMouseMove = (e: MouseEvent): void => {
+      const delta = e.clientX - resizeStartXRef.current;
+      const newWidth = Math.max(
+        72,
+        Math.min(400, resizeStartWidthRef.current + delta),
+      );
+      setSidebarWidth(newWidth);
+      void window.sideBarAPI.resizeSidebar(newWidth);
+    };
+
+    const handleMouseUp = (): void => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return (): void => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing]);
 
   return (
-    <ChatProvider>
-      <SidebarContent isVisible={isVisible} />
-    </ChatProvider>
+    <BrowserProvider api={window.sideBarAPI}>
+      <div className="h-full w-full flex flex-row bg-background select-none relative">
+        <div className="flex-1 flex flex-col border-r border-border dark:border-border min-w-0">
+          {/* macOS traffic lights spacing at top */}
+          {/* <div className="h-1 app-region-drag shrink-0" /> */}
+
+          {/* Toolbar with navigation controls */}
+          <SidebarToolbar />
+
+          {/* Vertical Tab Bar */}
+          <div className="flex-1 overflow-hidden w-full min-w-0">
+            <VerticalTabBar />
+          </div>
+        </div>
+
+        {/* Resize Handle */}
+        <div
+          className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500/50 transition-colors app-region-no-drag z-50"
+          onMouseDown={handleMouseDown}
+          style={{
+            backgroundColor: isResizing
+              ? "rgba(59, 130, 246, 0.5)"
+              : "transparent",
+          }}
+        />
+      </div>
+    </BrowserProvider>
   );
 };

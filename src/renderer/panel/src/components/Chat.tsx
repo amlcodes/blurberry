@@ -1,23 +1,25 @@
 import { Button } from "@common/components/Button";
 import { cn } from "@common/lib/utils";
+import type { UIMessage } from "ai";
 import { ArrowUp, Plus } from "lucide-react";
+import { motion } from "motion/react";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import { useChat } from "../contexts/ChatContext";
 
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: number;
-  isStreaming?: boolean;
-}
+// Helper to extract text content from UIMessage parts
+const getTextFromParts = (message: UIMessage): string => {
+  const textParts = message.parts
+    .filter((part) => part.type === "text")
+    .map((part) => (part as { type: "text"; text: string }).text);
+  return textParts.join("");
+};
 
 // Auto-scroll hook
 const useAutoScroll = (
-  messages: Message[],
+  messages: UIMessage[],
 ): React.RefObject<HTMLDivElement | null> => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevCount = useRef(0);
@@ -142,7 +144,30 @@ const AssistantMessage: React.FC<{
 
 // Loading Indicator with spinning star
 const LoadingIndicator: React.FC = () => {
-  return <div className="animate-spring-scale">...</div>;
+  // Fun animated loading with wave-motion per character
+
+  const loadingText = "Thinking...";
+  return (
+    <div className="flex gap-1 justify-center items-center h-8 select-none font-medium text-primary">
+      {loadingText.split("").map((char, i) => (
+        <motion.span
+          key={i}
+          initial={{ y: 0 }}
+          animate={{ y: [0, -8, 0] }}
+          transition={{
+            repeat: Infinity,
+            repeatType: "loop",
+            duration: 1.1,
+            delay: i * 0.09,
+            ease: "easeInOut",
+          }}
+          className={char === " " ? "w-2 inline-block" : ""}
+        >
+          {char}
+        </motion.span>
+      ))}
+    </div>
+  );
 };
 
 // Chat Input Component with pill design
@@ -236,8 +261,8 @@ const ChatInput: React.FC<{
 
 // Conversation Turn Component
 interface ConversationTurn {
-  user?: Message;
-  assistant?: Message;
+  user?: UIMessage;
+  assistant?: UIMessage;
 }
 
 const ConversationTurnComponent: React.FC<{
@@ -245,11 +270,14 @@ const ConversationTurnComponent: React.FC<{
   isLoading?: boolean;
 }> = ({ turn, isLoading }) => (
   <div className="pt-12 flex flex-col gap-8">
-    {turn.user && <UserMessage content={turn.user.content} />}
+    {turn.user && <UserMessage content={getTextFromParts(turn.user)} />}
     {turn.assistant && (
       <AssistantMessage
-        content={turn.assistant.content}
-        isStreaming={turn.assistant.isStreaming}
+        content={getTextFromParts(turn.assistant)}
+        isStreaming={
+          (turn.assistant.metadata as { isStreaming?: boolean })?.isStreaming ??
+          false
+        }
       />
     )}
     {isLoading && (
@@ -309,7 +337,7 @@ export const Chat: React.FC = () => {
               <div className="text-center animate-fade-in max-w-md mx-auto gap-2 flex flex-col">
                 <h3 className="text-2xl font-bold">🫐</h3>
                 <p className="text-muted-foreground text-sm">
-                  Press ⌘E to toggle the sidebar
+                  Press ⌘E to toggle the panel
                 </p>
               </div>
             </div>

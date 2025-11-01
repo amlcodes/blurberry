@@ -1,3 +1,4 @@
+import type { UIMessage } from "ai";
 import React, {
   createContext,
   useCallback,
@@ -6,16 +7,8 @@ import React, {
   useState,
 } from "react";
 
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: number;
-  isStreaming?: boolean;
-}
-
 interface ChatContextType {
-  messages: Message[];
+  messages: UIMessage[];
   isLoading: boolean;
 
   // Chat actions
@@ -30,7 +23,7 @@ interface ChatContextType {
 
 const ChatContext = createContext<ChatContextType | null>(null);
 
-export const useChat = () => {
+export const useChat = (): ChatContextType => {
   const context = useContext(ChatContext);
   if (!context) {
     throw new Error("useChat must be used within a ChatProvider");
@@ -41,35 +34,23 @@ export const useChat = () => {
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<UIMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   // Load initial messages from main process
   useEffect(() => {
-    const loadMessages = async () => {
+    const loadMessages = async (): Promise<void> => {
       try {
-        const storedMessages = await window.sidebarAPI.getMessages();
+        const storedMessages = await window.panelAPI.getMessages();
         if (storedMessages && storedMessages.length > 0) {
-          // Convert CoreMessage format to our frontend Message format
-          const convertedMessages = storedMessages.map(
-            (msg: any, index: number) => ({
-              id: `msg-${index}`,
-              role: msg.role,
-              content:
-                typeof msg.content === "string"
-                  ? msg.content
-                  : msg.content.find((p: any) => p.type === "text")?.text || "",
-              timestamp: Date.now(),
-              isStreaming: false,
-            }),
-          );
-          setMessages(convertedMessages);
+          // Messages are already in UIMessage format - no conversion needed!
+          setMessages(storedMessages);
         }
       } catch (error) {
         console.error("Failed to load messages:", error);
       }
     };
-    loadMessages();
+    void loadMessages();
   }, []);
 
   const sendMessage = useCallback(async (content: string) => {
@@ -79,7 +60,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       const messageId = Date.now().toString();
 
       // Send message to main process (which will handle context)
-      await window.sidebarAPI.sendChatMessage({
+      await window.panelAPI.sendChatMessage({
         message: content,
         context: {
           url: null,
@@ -99,7 +80,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const clearChat = useCallback(async () => {
     try {
-      await window.sidebarAPI.clearChat();
+      await window.panelAPI.clearChat();
       setMessages([]);
     } catch (error) {
       console.error("Failed to clear chat:", error);
@@ -108,7 +89,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const getPageContent = useCallback(async () => {
     try {
-      return await window.sidebarAPI.getPageContent();
+      return await window.panelAPI.getPageContent();
     } catch (error) {
       console.error("Failed to get page content:", error);
       return null;
@@ -117,7 +98,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const getPageText = useCallback(async () => {
     try {
-      return await window.sidebarAPI.getPageText();
+      return await window.panelAPI.getPageText();
     } catch (error) {
       console.error("Failed to get page text:", error);
       return null;
@@ -126,7 +107,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const getCurrentUrl = useCallback(async () => {
     try {
-      return await window.sidebarAPI.getCurrentUrl();
+      return await window.panelAPI.getCurrentUrl();
     } catch (error) {
       console.error("Failed to get current URL:", error);
       return null;
@@ -140,36 +121,24 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       messageId: string;
       content: string;
       isComplete: boolean;
-    }) => {
+    }): void => {
       if (data.isComplete) {
         setIsLoading(false);
       }
     };
 
     // Listen for message updates from main process
-    const handleMessagesUpdated = (updatedMessages: any[]) => {
-      // Convert CoreMessage format to our frontend Message format
-      const convertedMessages = updatedMessages.map(
-        (msg: any, index: number) => ({
-          id: `msg-${index}`,
-          role: msg.role,
-          content:
-            typeof msg.content === "string"
-              ? msg.content
-              : msg.content.find((p: any) => p.type === "text")?.text || "",
-          timestamp: Date.now(),
-          isStreaming: false,
-        }),
-      );
-      setMessages(convertedMessages);
+    const handleMessagesUpdated = (updatedMessages: UIMessage[]): void => {
+      // Messages are already in UIMessage format - no conversion needed!
+      setMessages(updatedMessages);
     };
 
-    window.sidebarAPI.onChatResponse(handleChatResponse);
-    window.sidebarAPI.onMessagesUpdated(handleMessagesUpdated);
+    window.panelAPI.onChatResponse(handleChatResponse);
+    window.panelAPI.onMessagesUpdated(handleMessagesUpdated);
 
     return () => {
-      window.sidebarAPI.removeChatResponseListener();
-      window.sidebarAPI.removeMessagesUpdatedListener();
+      window.panelAPI.removeChatResponseListener();
+      window.panelAPI.removeMessagesUpdatedListener();
     };
   }, []);
 

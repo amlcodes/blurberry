@@ -63,9 +63,20 @@ export class AppMenu {
           },
           { type: "separator" },
           {
-            label: "Toggle Sidebar",
+            label: "Toggle Panel",
             accelerator: "CmdOrCtrl+E",
-            click: () => this.handleToggleSidebar(),
+            click: () => this.handleTogglePanel(),
+          },
+          {
+            label: "Toggle Layout (TopBar/Sidebar)",
+            accelerator: "CmdOrCtrl+Shift+L",
+            click: () => this.handleToggleLayout(),
+          },
+          { type: "separator" },
+          {
+            label: "Toggle TopBar/Sidebar Visibility",
+            accelerator: "CmdOrCtrl+S",
+            click: () => this.handleToggleBarVisibility(),
           },
           { type: "separator" },
           {
@@ -105,7 +116,8 @@ export class AppMenu {
 
   // Menu action handlers
   private handleNewTab(): void {
-    this.mainWindow.createTab("https://www.google.com");
+    const newTab = this.mainWindow.createTab("https://www.google.com");
+    this.mainWindow.switchActiveTab(newTab.id);
   }
 
   private handleCloseTab(): void {
@@ -126,15 +138,36 @@ export class AppMenu {
     }
   }
 
-  private handleToggleSidebar(): void {
-    this.mainWindow.sidebar.toggle();
+  private handleTogglePanel(): void {
+    this.mainWindow.panel.toggle();
     this.mainWindow.updateAllBounds();
-    // Notify TopBar of sidebar visibility change
-    const isVisible = this.mainWindow.sidebar.getIsVisible();
-    this.mainWindow.topBar.view.webContents.send(
-      "sidebar-visibility-changed",
-      isVisible,
-    );
+    // Notify TopBar or SideBar of panel visibility change
+    const isVisible = this.mainWindow.panel.getIsVisible();
+    if (this.mainWindow.topBar) {
+      this.mainWindow.topBar.view.webContents.send(
+        "panel-visibility-changed",
+        isVisible,
+      );
+    }
+    if (this.mainWindow.sideBar) {
+      this.mainWindow.sideBar.view.webContents.send(
+        "panel-visibility-changed",
+        isVisible,
+      );
+    }
+  }
+
+  private handleToggleLayout(): void {
+    this.mainWindow.toggleLayout();
+  }
+
+  private handleToggleBarVisibility(): void {
+    // Toggle based on current layout mode
+    if (this.mainWindow.layoutMode === "topbar") {
+      this.mainWindow.toggleTopBarVisibility();
+    } else {
+      this.mainWindow.toggleSideBarVisibility();
+    }
   }
 
   private handleToggleDevTools(): void {

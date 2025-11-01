@@ -1,4 +1,4 @@
-import { TabInfo } from "@preload/topbar.d";
+import { BrowserAPI, TabInfo } from "@preload/global.d";
 import React, {
   createContext,
   useCallback,
@@ -11,12 +11,13 @@ interface BrowserContextType {
   tabs: TabInfo[];
   activeTab: TabInfo | null;
   isLoading: boolean;
-  isSidebarVisible: boolean;
+  isPanelVisible: boolean;
 
   // Tab management
   createTab: (url?: string) => Promise<void>;
   closeTab: (tabId: string) => Promise<void>;
   switchTab: (tabId: string) => Promise<void>;
+  reorderTabs: (orderedTabIds: string[]) => Promise<void>;
   refreshTabs: () => Promise<void>;
 
   // Navigation
@@ -24,13 +25,14 @@ interface BrowserContextType {
   goBack: () => Promise<void>;
   goForward: () => Promise<void>;
   reload: () => Promise<void>;
+  stop: () => Promise<void>;
 
   // Tab actions
   takeScreenshot: (tabId: string) => Promise<string | null>;
   runJavaScript: (tabId: string, code: string) => Promise<void | null>;
 
-  // Sidebar
-  toggleSidebar: () => Promise<void>;
+  // Panel
+  togglePanel: () => Promise<void>;
 }
 
 const BrowserContext = createContext<BrowserContextType | null>(null);
@@ -43,29 +45,39 @@ export const useBrowser = (): BrowserContextType => {
   return context;
 };
 
-export const BrowserProvider: React.FC<{ children: React.ReactNode }> = ({
+interface BrowserProviderProps {
+  children: React.ReactNode;
+  api: BrowserAPI;
+}
+
+export const BrowserProvider: React.FC<BrowserProviderProps> = ({
   children,
+  api,
 }) => {
   const [tabs, setTabs] = useState<TabInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const [isPanelVisible, setIsPanelVisible] = useState(true);
 
   const activeTab = tabs.find((tab) => tab.isActive) || null;
 
   const refreshTabs = useCallback(async () => {
     try {
-      const tabsData = await window.topBarAPI.getTabs();
+      const tabsData = await api.getTabs();
       setTabs(tabsData);
     } catch (error) {
       console.error("Failed to refresh tabs:", error);
     }
-  }, []);
+  }, [api]);
 
   const createTab = useCallback(
     async (url?: string) => {
       setIsLoading(true);
       try {
-        await window.topBarAPI.createTab(url);
+        const newTab = await api.createTab(url);
+        if (newTab) {
+          // Switch to the newly created tab
+          await api.switchTab(newTab.id);
+        }
         await refreshTabs();
       } catch (error) {
         console.error("Failed to create tab:", error);
@@ -73,14 +85,14 @@ export const BrowserProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsLoading(false);
       }
     },
-    [refreshTabs],
+    [api, refreshTabs],
   );
 
   const closeTab = useCallback(
     async (tabId: string) => {
       setIsLoading(true);
       try {
-        await window.topBarAPI.closeTab(tabId);
+        await api.closeTab(tabId);
         await refreshTabs();
       } catch (error) {
         console.error("Failed to close tab:", error);
@@ -88,14 +100,14 @@ export const BrowserProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsLoading(false);
       }
     },
-    [refreshTabs],
+    [api, refreshTabs],
   );
 
   const switchTab = useCallback(
     async (tabId: string) => {
       setIsLoading(true);
       try {
-        await window.topBarAPI.switchTab(tabId);
+        await api.switchTab(tabId);
         await refreshTabs();
       } catch (error) {
         console.error("Failed to switch tab:", error);
@@ -103,7 +115,19 @@ export const BrowserProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsLoading(false);
       }
     },
-    [refreshTabs],
+    [api, refreshTabs],
+  );
+
+  const reorderTabs = useCallback(
+    async (orderedTabIds: string[]) => {
+      try {
+        await api.reorderTabs(orderedTabIds);
+        await refreshTabs();
+      } catch (error) {
+        console.error("Failed to reorder tabs:", error);
+      }
+    },
+    [api, refreshTabs],
   );
 
   const navigateToUrl = useCallback(
@@ -112,7 +136,7 @@ export const BrowserProvider: React.FC<{ children: React.ReactNode }> = ({
 
       setIsLoading(true);
       try {
-        await window.topBarAPI.navigateTab(activeTab.id, url);
+        await api.navigateTab(activeTab.id, url);
         // Wait a bit for navigation to start, then refresh tabs to get updated URL
         setTimeout(() => void refreshTabs(), 500);
       } catch (error) {
@@ -121,90 +145,106 @@ export const BrowserProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsLoading(false);
       }
     },
-    [activeTab, refreshTabs],
+    [activeTab, api, refreshTabs],
   );
 
   const goBack = useCallback(async () => {
     if (!activeTab) return;
 
     try {
-      await window.topBarAPI.goBack(activeTab.id);
+      await api.goBack(activeTab.id);
       setTimeout(() => void refreshTabs(), 500);
     } catch (error) {
       console.error("Failed to go back:", error);
     }
-  }, [activeTab, refreshTabs]);
+  }, [activeTab, api, refreshTabs]);
 
   const goForward = useCallback(async () => {
     if (!activeTab) return;
 
     try {
-      await window.topBarAPI.goForward(activeTab.id);
+      await api.goForward(activeTab.id);
       setTimeout(() => void refreshTabs(), 500);
     } catch (error) {
       console.error("Failed to go forward:", error);
     }
-  }, [activeTab, refreshTabs]);
+  }, [activeTab, api, refreshTabs]);
 
   const reload = useCallback(async () => {
     if (!activeTab) return;
 
     try {
-      await window.topBarAPI.reload(activeTab.id);
+      await api.reload(activeTab.id);
       setTimeout(() => void refreshTabs(), 500);
     } catch (error) {
       console.error("Failed to reload:", error);
     }
-  }, [activeTab, refreshTabs]);
+  }, [activeTab, api, refreshTabs]);
 
-  const takeScreenshot = useCallback(async (tabId: string) => {
+  const stop = useCallback(async () => {
+    if (!activeTab) return;
+
     try {
-      return await window.topBarAPI.tabScreenshot(tabId);
+      await api.stop(activeTab.id);
     } catch (error) {
-      console.error("Failed to take screenshot:", error);
-      return null;
+      console.error("Failed to stop:", error);
     }
-  }, []);
+  }, [activeTab, api]);
 
-  const runJavaScript = useCallback(async (tabId: string, code: string) => {
+  const takeScreenshot = useCallback(
+    async (tabId: string) => {
+      try {
+        return await api.tabScreenshot(tabId);
+      } catch (error) {
+        console.error("Failed to take screenshot:", error);
+        return null;
+      }
+    },
+    [api],
+  );
+
+  const runJavaScript = useCallback(
+    async (tabId: string, code: string) => {
+      try {
+        return void (await api.tabRunJs(tabId, code));
+      } catch (error) {
+        console.error("Failed to run JavaScript:", error);
+        return null;
+      }
+    },
+    [api],
+  );
+
+  const togglePanel = useCallback(async () => {
     try {
-      return void (await window.topBarAPI.tabRunJs(tabId, code));
+      const newVisibility = await api.togglePanel();
+      setIsPanelVisible(newVisibility);
     } catch (error) {
-      console.error("Failed to run JavaScript:", error);
-      return null;
+      console.error("Failed to toggle panel:", error);
     }
-  }, []);
+  }, [api]);
 
-  const toggleSidebar = useCallback(async () => {
-    try {
-      const newVisibility = await window.topBarAPI.toggleSidebar();
-      setIsSidebarVisible(newVisibility);
-    } catch (error) {
-      console.error("Failed to toggle sidebar:", error);
-    }
-  }, []);
-
-  // Initialize tabs and sidebar visibility on mount
+  // Initialize tabs and panel visibility on mount
   useEffect(() => {
     void refreshTabs();
-    // Get initial sidebar visibility state
-    window.topBarAPI
-      .getSidebarVisibility()
+    // Get initial panel visibility state
+    api
+      .getPanelVisibility()
       .then((isVisible) => {
-        console.log("[BrowserContext] Initial sidebar visibility:", isVisible);
-        setIsSidebarVisible(isVisible);
+        console.log("[BrowserContext] Initial panel visibility:", isVisible);
+        setIsPanelVisible(isVisible);
       })
       .catch(console.error);
-  }, [refreshTabs]);
+  }, [api, refreshTabs]);
 
-  // Listen for sidebar visibility changes
+  // Listen for panel visibility changes
   useEffect(() => {
-    const cleanup = window.topBarAPI.onSidebarVisibilityChanged((isVisible) => {
-      console.log("[BrowserContext] Sidebar visibility changed to:", isVisible);
-      setIsSidebarVisible(isVisible);
+    const cleanup = api.onPanelVisibilityChanged((isVisible) => {
+      console.log("[BrowserContext] Panel visibility changed to:", isVisible);
+      setIsPanelVisible(isVisible);
     });
     return cleanup;
-  }, []);
+  }, [api]);
 
   // Periodic refresh to keep tabs in sync
   useEffect(() => {
@@ -216,18 +256,20 @@ export const BrowserProvider: React.FC<{ children: React.ReactNode }> = ({
     tabs,
     activeTab,
     isLoading,
-    isSidebarVisible,
+    isPanelVisible,
     createTab,
     closeTab,
     switchTab,
+    reorderTabs,
     refreshTabs,
     navigateToUrl,
     goBack,
     goForward,
     reload,
+    stop,
     takeScreenshot,
     runJavaScript,
-    toggleSidebar,
+    togglePanel,
   };
 
   return (
