@@ -88,6 +88,10 @@ const panelAPI = {
     electronAPI.ipcRenderer.invoke("workflow-analyze-recent", options),
   workflowGetCached: (sessionId: number) =>
     electronAPI.ipcRenderer.invoke("workflow-get-cached", sessionId),
+
+  // Browser control
+  browserOpenUrl: (url: string) =>
+    electronAPI.ipcRenderer.invoke("browser-open-url", url),
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to

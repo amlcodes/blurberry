@@ -268,6 +268,21 @@ export class HistoryDatabase {
     this.db.run(
       "CREATE INDEX IF NOT EXISTS idx_workflow_cache_session ON workflow_cache(session_id)",
     );
+
+    // Embeddings table - stores vector metadata
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS embeddings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        visit_id INTEGER NOT NULL UNIQUE,
+        embedding_model TEXT NOT NULL,
+        content_hash TEXT,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (visit_id) REFERENCES page_visits(id)
+      )
+    `);
+    this.db.run(
+      "CREATE INDEX IF NOT EXISTS idx_embeddings_visit ON embeddings(visit_id)",
+    );
   }
 
   // Session management
@@ -323,6 +338,15 @@ export class HistoryDatabase {
       duration,
       visitId,
     ]);
+  }
+
+  updatePageVisitTitle(visitId: number, title: string): void {
+    if (!this.db) return;
+    this.db.run("UPDATE page_visits SET title = ? WHERE id = ?", [
+      title,
+      visitId,
+    ]);
+    this.save();
   }
 
   // Tab event recording
@@ -588,6 +612,64 @@ export class HistoryDatabase {
     );
     const row = this.rowToObject<{ count: number }>(result);
     return row?.count || 0;
+  }
+
+  // Embedding methods for RAG
+  recordEmbedding(visitId: number, model: string, contentHash: string): void {
+    if (!this.db) return;
+    this.db.run(
+      `INSERT INTO embeddings (visit_id, embedding_model, content_hash, created_at) 
+       VALUES (?, ?, ?, ?)`,
+      [visitId, model, contentHash, Date.now()],
+    );
+    this.save();
+  }
+
+  hasEmbedding(visitId: number): boolean {
+    if (!this.db) return false;
+    const result = this.db.exec(
+      "SELECT COUNT(*) as count FROM embeddings WHERE visit_id = ?",
+      [visitId],
+    );
+    const count = result[0]?.values[0]?.[0] as number;
+    return count > 0;
+  }
+
+  getVisitContent(
+    visitId: number,
+  ): { title: string; url: string; html: string } | null {
+    if (!this.db) return null;
+
+    // Get page visit
+    const visitResult = this.db.exec(
+      "SELECT title, url FROM page_visits WHERE id = ?",
+      [visitId],
+    );
+    const visit = this.rowToObject<{ title: string; url: string }>(visitResult);
+
+    // Get latest DOM snapshot
+    const snapshotResult = this.db.exec(
+      "SELECT html FROM dom_snapshots WHERE visit_id = ? ORDER BY timestamp DESC LIMIT 1",
+      [visitId],
+    );
+    const snapshot = this.rowToObject<{ html: string }>(snapshotResult);
+
+    if (!visit) return null;
+
+    return {
+      title: visit.title,
+      url: visit.url,
+      html: snapshot?.html || "",
+    };
+  }
+
+  getVisitTimestamp(visitId: number): number | null {
+    if (!this.db) return null;
+    const result = this.db.exec(
+      "SELECT timestamp FROM page_visits WHERE id = ?",
+      [visitId],
+    );
+    return (result?.[0]?.values[0]?.[0] as number) || null;
   }
 
   // Cleanup on close

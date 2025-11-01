@@ -259,6 +259,55 @@ const ChatInput: React.FC<{
   );
 };
 
+// Browsing History Matches Component
+const BrowsingHistoryMatches: React.FC<{
+  matches: Array<{
+    visitId: number;
+    title: string;
+    url: string;
+    timestamp: number;
+  }>;
+  onSelectUrl: (url: string) => void;
+}> = ({ matches, onSelectUrl }) => {
+  if (!matches || matches.length === 0) {
+    return (
+      <div className="mt-2 p-3 bg-muted rounded text-sm text-muted-foreground">
+        No matching pages found in your browsing history.
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2 space-y-2">
+      <p className="text-xs text-muted-foreground">
+        Found {matches.length} matching pages:
+      </p>
+      {matches.map((match, idx) => (
+        <button
+          key={match.visitId}
+          onClick={() => onSelectUrl(match.url)}
+          className="w-full p-3 bg-muted hover:bg-muted/80 rounded text-left transition-colors"
+        >
+          <div className="flex items-start gap-2">
+            <span className="text-xs font-medium text-primary">{idx + 1}.</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground truncate">
+                {match.title}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {match.url}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {new Date(match.timestamp).toLocaleString()}
+              </p>
+            </div>
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+};
+
 // Conversation Turn Component
 interface ConversationTurn {
   user?: UIMessage;
@@ -268,17 +317,29 @@ interface ConversationTurn {
 const ConversationTurnComponent: React.FC<{
   turn: ConversationTurn;
   isLoading?: boolean;
-}> = ({ turn, isLoading }) => (
+  toolResult?: ToolResult;
+  onSelectUrl?: (url: string) => void;
+}> = ({ turn, isLoading, toolResult, onSelectUrl }) => (
   <div className="pt-12 flex flex-col gap-8">
     {turn.user && <UserMessage content={getTextFromParts(turn.user)} />}
     {turn.assistant && (
-      <AssistantMessage
-        content={getTextFromParts(turn.assistant)}
-        isStreaming={
-          (turn.assistant.metadata as { isStreaming?: boolean })?.isStreaming ??
-          false
-        }
-      />
+      <>
+        <AssistantMessage
+          content={getTextFromParts(turn.assistant)}
+          isStreaming={
+            (turn.assistant.metadata as { isStreaming?: boolean })
+              ?.isStreaming ?? false
+          }
+        />
+        {toolResult && onSelectUrl && (
+          <div className="flex justify-start max-w-[85%]">
+            <BrowsingHistoryMatches
+              matches={toolResult.matches}
+              onSelectUrl={onSelectUrl}
+            />
+          </div>
+        )}
+      </>
     )}
     {isLoading && (
       <div className="flex justify-start">
@@ -289,9 +350,34 @@ const ConversationTurnComponent: React.FC<{
 );
 
 // Main Chat Component
+interface ToolResult {
+  matches: Array<{
+    visitId: number;
+    title: string;
+    url: string;
+    timestamp: number;
+  }>;
+}
+
 export const Chat: React.FC = () => {
   const { messages, isLoading, sendMessage, clearChat } = useChat();
   const scrollRef = useAutoScroll(messages);
+
+  // Extract tool results from message metadata
+  const getToolResults = (message: UIMessage): ToolResult | undefined => {
+    const metadata = message.metadata as
+      | { toolResults?: Array<{ toolName: string; result: unknown }> }
+      | undefined;
+    if (!metadata?.toolResults || metadata.toolResults.length === 0) {
+      return undefined;
+    }
+
+    // Find search_browsing_history result
+    const historyResult = metadata.toolResults.find(
+      (r) => r.toolName === "search_browsing_history",
+    );
+    return historyResult?.result as ToolResult | undefined;
+  };
 
   // Group messages into conversation turns
   const conversationTurns: ConversationTurn[] = [];
@@ -352,6 +438,12 @@ export const Chat: React.FC = () => {
                     showLoadingAfterLastTurn &&
                     index === conversationTurns.length - 1
                   }
+                  toolResult={
+                    turn.assistant ? getToolResults(turn.assistant) : undefined
+                  }
+                  onSelectUrl={(url: string) => {
+                    void window.panelAPI.browserOpenUrl(url);
+                  }}
                 />
               ))}
             </>

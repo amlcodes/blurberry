@@ -8,6 +8,7 @@ import { Panel } from "./Panel";
 import { SideBar } from "./SideBar";
 import { Tab } from "./Tab";
 import { TopBar } from "./TopBar";
+import { VectorStore } from "./VectorStore";
 import { WorkflowAnalyzer } from "./WorkflowAnalyzer";
 
 type LayoutMode = "topbar" | "sidebar";
@@ -35,6 +36,7 @@ export class Window {
   public readonly historyTracker: HistoryTracker;
   public readonly historySettings: HistorySettings;
   public readonly workflowAnalyzer: WorkflowAnalyzer;
+  public readonly vectorStore: VectorStore;
 
   constructor() {
     // Create the browser window.
@@ -55,6 +57,7 @@ export class Window {
     this.historySettings = new HistorySettings();
     this.historyTracker = new HistoryTracker(this, this.historyDatabase);
     this.workflowAnalyzer = new WorkflowAnalyzer(this.historyDatabase);
+    this.vectorStore = new VectorStore();
 
     // Initialize with topbar layout by default
     // Create panel first so it's behind the topbar/sidebar
@@ -107,6 +110,12 @@ export class Window {
   private async initializeHistoryTracking(): Promise<void> {
     // Wait for the database to be ready
     await this.historyDatabase.ready();
+
+    // Set up vector store for LLM and tracker
+    this.llmClient.setVectorStore(this.vectorStore);
+    this.historyTracker.setVectorStore(this.vectorStore);
+    this.historyTracker.setEmbeddingModel(this.llmClient.embeddingModel);
+
     // Start history tracking
     this.historyTracker.start();
   }

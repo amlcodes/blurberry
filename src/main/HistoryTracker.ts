@@ -1,6 +1,8 @@
+import { createHash } from "crypto";
 import type { WebContents } from "electron";
 import type { HistoryDatabase } from "./database/HistoryDatabase";
 import type { Tab } from "./Tab";
+import type { VectorStore } from "./VectorStore";
 import type { Window } from "./Window";
 
 interface PendingInteraction {
@@ -18,6 +20,7 @@ interface VisitTracker {
   startTime: number;
   lastScreenshot: number;
   lastSnapshot: number;
+  url: string;
 }
 
 export class HistoryTracker {
@@ -29,6 +32,11 @@ export class HistoryTracker {
   private visitTrackers: Map<string, VisitTracker> = new Map();
   private enabled: boolean = true;
   private excludedDomains: Set<string> = new Set();
+  private vectorStore: VectorStore | null = null;
+  private embeddingModel: ReturnType<
+    typeof import("@ai-sdk/openai").openai.embedding
+  > | null = null;
+  private trackedTabs: Set<string> = new Set();
 
   // Throttle settings
   private readonly BATCH_INTERVAL = 2000; // 2 seconds
@@ -74,11 +82,29 @@ export class HistoryTracker {
     }
   }
 
+  // Set vector store for RAG functionality
+  setVectorStore(vectorStore: VectorStore): void {
+    this.vectorStore = vectorStore;
+  }
+
+  setEmbeddingModel(
+    embeddingModel: ReturnType<
+      typeof import("@ai-sdk/openai").openai.embedding
+    > | null,
+  ): void {
+    this.embeddingModel = embeddingModel;
+  }
+
   // Setup listeners for a tab
   setupTabListeners(tab: Tab): void {
     if (!this.enabled || this.sessionId === null) return;
 
     const tabId = tab.id;
+
+    // Prevent duplicate listeners
+    if (this.trackedTabs.has(tabId)) return;
+    this.trackedTabs.add(tabId);
+
     const webContents = tab.webContents;
 
     // Record tab creation
@@ -89,8 +115,11 @@ export class HistoryTracker {
       this.handleNavigation(tab, url);
     });
 
-    webContents.on("did-navigate-in-page", (_, url) => {
-      this.handleNavigation(tab, url);
+    webContents.on("did-navigate-in-page", (_, url, isMainFrame) => {
+      // Only record in-page navigation if it's the main frame
+      if (isMainFrame) {
+        this.handleNavigation(tab, url);
+      }
     });
 
     // Track page title updates
@@ -117,12 +146,18 @@ export class HistoryTracker {
     if (this.isExcludedDomain(url)) return;
 
     const tabId = tab.id;
+    const existingTracker = this.visitTrackers.get(tabId);
+
+    // Check if this is a duplicate event for the same URL
+    if (existingTracker && existingTracker.url === url) {
+      // Same URL, ignore duplicate event
+      return;
+    }
 
     // End previous visit if exists
-    const previousTracker = this.visitTrackers.get(tabId);
-    if (previousTracker) {
-      const duration = Date.now() - previousTracker.startTime;
-      this.database.updatePageVisitDuration(previousTracker.visitId, duration);
+    if (existingTracker) {
+      const duration = Date.now() - existingTracker.startTime;
+      this.database.updatePageVisitDuration(existingTracker.visitId, duration);
     }
 
     // Record new visit
@@ -139,6 +174,7 @@ export class HistoryTracker {
       startTime: Date.now(),
       lastScreenshot: 0,
       lastSnapshot: 0,
+      url,
     });
 
     // Take initial screenshot after a short delay (let page render)
@@ -150,6 +186,11 @@ export class HistoryTracker {
     setTimeout(() => {
       this.captureDOMSnapshot(tab, visitId);
     }, 1500);
+
+    // Generate embedding after DOM snapshot (for RAG)
+    setTimeout(() => {
+      void this.generateEmbedding(tab, visitId);
+    }, 2000);
   }
 
   // Handle title updates
@@ -160,8 +201,8 @@ export class HistoryTracker {
     const tracker = this.visitTrackers.get(tabId);
 
     if (tracker && title && title !== "Loading...") {
-      // Update the page visit with the new title (we'll need to add this method)
-      // For now, we can skip this or store it in a way that updates aren't needed
+      // Update the page visit with the correct title
+      this.database.updatePageVisitTitle(tracker.visitId, title);
     }
   }
 
@@ -192,6 +233,9 @@ export class HistoryTracker {
       this.database.updatePageVisitDuration(tracker.visitId, duration);
       this.visitTrackers.delete(tabId);
     }
+
+    // Remove from tracked tabs
+    this.trackedTabs.delete(tabId);
   }
 
   // Inject tracking script into page
@@ -229,24 +273,51 @@ export class HistoryTracker {
         }, true);
 
         // Track input changes (debounced)
-        let inputTimeout;
+        let inputTimeout = null;
+        let inputCount = 0;
         document.addEventListener('input', (e) => {
-          const target = e.target;
-          if (target.type === 'password') return; // Skip password fields
-          if (target.autocomplete === 'off') return; // Respect autocomplete=off
+          inputCount++;
+          console.log('[HistoryTracker] Input event fired, count:', inputCount);
           
-          clearTimeout(inputTimeout);
+          const target = e.target;
+          
+          // Only track input/textarea/select elements
+          if (!target || !['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) {
+            console.log('[HistoryTracker] Skipping non-input element:', target?.tagName);
+            return;
+          }
+          
+          // Skip password fields
+          if (target.type === 'password') {
+            console.log('[HistoryTracker] Skipping password field');
+            return;
+          }
+          
+          if (inputTimeout !== null) {
+            clearTimeout(inputTimeout);
+          }
+          
           inputTimeout = setTimeout(() => {
             const selector = getSelector(target);
-            const value = target.value ? '[REDACTED]' : ''; // Don't store actual values
-            window.electronAPI?.trackInteraction({
-              visitId: ${visitId},
-              type: 'input',
-              selector: selector,
-              value: value,
-              timestamp: Date.now()
-            });
-          }, 500);
+            const value = target.value || '';
+            
+            console.log('[HistoryTracker] Recording input:', selector, 'value length:', value.length, 'value:', value.substring(0, 50));
+            
+            if (window.electronAPI?.trackInteraction) {
+              window.electronAPI.trackInteraction({
+                visitId: ${visitId},
+                type: 'input',
+                selector: selector,
+                value: value,
+                timestamp: Date.now()
+              });
+              console.log('[HistoryTracker] Input tracked successfully');
+            } else {
+              console.error('[HistoryTracker] electronAPI.trackInteraction not available');
+            }
+            
+            inputTimeout = null;
+          }, 300); // Reduced from 500ms to 300ms for better responsiveness
         }, true);
 
         // Track scroll (throttled)
@@ -384,15 +455,23 @@ export class HistoryTracker {
   }
 
   // Flush pending interactions to database
-  private flushPendingInteractions(): void {
+  public flushInteractions(): void {
     if (this.pendingInteractions.length === 0) return;
 
     try {
       this.database.recordInteractionsBatch(this.pendingInteractions);
+      console.log(
+        `[HistoryTracker] Flushed ${this.pendingInteractions.length} interactions to database`,
+      );
       this.pendingInteractions = [];
     } catch (error) {
       console.error("Failed to flush interactions:", error);
     }
+  }
+
+  // Internal alias for private use
+  private flushPendingInteractions(): void {
+    this.flushInteractions();
   }
 
   // Domain exclusion
@@ -432,5 +511,48 @@ export class HistoryTracker {
   // Get current visit ID for a tab
   getCurrentVisitId(tabId: string): number | null {
     return this.visitTrackers.get(tabId)?.visitId || null;
+  }
+
+  // Generate embedding for RAG
+  private async generateEmbedding(_tab: Tab, visitId: number): Promise<void> {
+    if (!this.vectorStore || !this.embeddingModel) return;
+    if (this.database.hasEmbedding(visitId)) return;
+
+    try {
+      // Get page content
+      const content = this.database.getVisitContent(visitId);
+      if (!content) return;
+
+      // Extract text from HTML (simple approach)
+      const text = content.html.replace(/<[^>]*>/g, " ").substring(0, 8000);
+      const embeddingText = `${content.title}\n${content.url}\n${text}`;
+
+      // Generate content hash
+      const contentHash = createHash("md5").update(embeddingText).digest("hex");
+
+      // Generate embedding
+      const { embedMany } = await import("ai");
+      const { embeddings } = await embedMany({
+        model: this.embeddingModel,
+        values: [embeddingText],
+      });
+
+      // Store in vector index
+      await this.vectorStore.addVector(visitId, embeddings[0]);
+
+      // Record in database
+      this.database.recordEmbedding(
+        visitId,
+        "text-embedding-3-small",
+        contentHash,
+      );
+
+      console.log(`[HistoryTracker] Generated embedding for visit ${visitId}`);
+    } catch (error) {
+      console.error(
+        `[HistoryTracker] Failed to generate embedding for visit ${visitId}:`,
+        error,
+      );
+    }
   }
 }

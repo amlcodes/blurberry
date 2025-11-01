@@ -173,4 +173,7 @@ export interface PanelAPI {
     limit?: number;
   }) => Promise<WorkflowAnalysis | null>;
   workflowGetCached: (sessionId: number) => Promise<WorkflowCache | null>;
+
+  // Browser control
+  browserOpenUrl: (url: string) => Promise<string>;
 }

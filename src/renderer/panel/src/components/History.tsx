@@ -220,30 +220,45 @@ const VisitItem: React.FC<{
             </div>
           )}
 
-          {/* Interactions summary */}
+          {/* Interactions details */}
           {details.interactions.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-xs font-medium text-foreground">
                 Interactions ({details.interactions.length})
               </h4>
-              <div className="space-y-1">
-                {Object.entries(
-                  details.interactions.reduce(
-                    (acc, interaction) => {
-                      acc[interaction.type] = (acc[interaction.type] || 0) + 1;
-                      return acc;
-                    },
-                    {} as Record<string, number>,
-                  ),
-                ).map(([type, count]) => (
+              <div className="space-y-1 max-h-64 overflow-y-auto">
+                {details.interactions.map((interaction) => (
                   <div
-                    key={type}
-                    className="flex items-center justify-between text-xs"
+                    key={interaction.id}
+                    className="p-2 rounded bg-muted/50 text-xs space-y-1"
                   >
-                    <span className="text-muted-foreground capitalize">
-                      {type}s
-                    </span>
-                    <span className="text-foreground">{count}</span>
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-foreground capitalize">
+                        {interaction.type}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {new Date(interaction.timestamp).toLocaleTimeString()}
+                      </span>
+                    </div>
+                    {interaction.selector && (
+                      <div className="text-muted-foreground font-mono text-[10px] break-all">
+                        {interaction.selector}
+                      </div>
+                    )}
+                    {interaction.value !== null &&
+                      interaction.value !== undefined &&
+                      interaction.value !== "" && (
+                        <div className="text-foreground">
+                          {interaction.type === "input"
+                            ? `Input: "${interaction.value}"`
+                            : `Value: ${interaction.value}`}
+                        </div>
+                      )}
+                    {(interaction.x !== null || interaction.y !== null) && (
+                      <div className="text-muted-foreground">
+                        Position: ({interaction.x}, {interaction.y})
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -342,14 +357,6 @@ export const History: React.FC<HistoryProps> = ({ onExportWorkflow }) => {
     loadHistory();
   }, []);
 
-  // Auto-refresh every 5 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      loadHistory();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
   // Filter visits based on search query
   useEffect(() => {
     if (searchQuery.trim()) {
@@ -367,9 +374,21 @@ export const History: React.FC<HistoryProps> = ({ onExportWorkflow }) => {
 
   // Load visit details when expanded
   useEffect(() => {
-    if (expandedVisitId !== null && !visitDetails.has(expandedVisitId)) {
+    if (expandedVisitId !== null) {
+      // Always reload details when expanded to catch new interactions
       loadVisitDetails(expandedVisitId);
     }
+  }, [expandedVisitId]);
+
+  // Refresh details periodically if a visit is expanded
+  useEffect(() => {
+    if (expandedVisitId === null) return;
+
+    const refreshInterval = setInterval(() => {
+      loadVisitDetails(expandedVisitId);
+    }, 1000); // Refresh every second while expanded
+
+    return () => clearInterval(refreshInterval);
   }, [expandedVisitId]);
 
   const loadHistory = async (): Promise<void> => {
@@ -401,6 +420,10 @@ export const History: React.FC<HistoryProps> = ({ onExportWorkflow }) => {
       const details = await window.panelAPI.historyGetVisitDetails(visitId);
       if (details) {
         setVisitDetails((prev) => new Map(prev).set(visitId, details));
+
+        // Also update the interaction count
+        const count = details.interactions.length;
+        setInteractionCounts((prev) => new Map(prev).set(visitId, count));
       }
     } catch (error) {
       console.error("Failed to load visit details:", error);

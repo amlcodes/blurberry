@@ -213,6 +213,13 @@ export class EventManager {
       return false;
     });
 
+    // Open URL in new tab (for RAG browsing history search)
+    ipcMain.handle("browser-open-url", (_, url: string) => {
+      const tab = this.mainWindow.createTab(url);
+      this.mainWindow.switchActiveTab(tab.id);
+      return tab.id;
+    });
+
     ipcMain.handle("tab-screenshot", async (_, tabId: string) => {
       const tab = this.mainWindow.getTab(tabId);
       if (tab) {
@@ -389,7 +396,14 @@ export class EventManager {
     // Get recent history
     ipcMain.handle("history-get-recent", (_, limit?: number) => {
       const database = this.mainWindow.historyDatabase;
+      const tracker = this.mainWindow.historyTracker;
       if (!database) return [];
+
+      // Flush any pending interactions before fetching history
+      if (tracker) {
+        tracker.flushInteractions();
+      }
+
       return database.getRecentHistory(limit || 50);
     });
 
@@ -413,7 +427,13 @@ export class EventManager {
     // Get visit details
     ipcMain.handle("history-get-visit-details", (_, visitId: number) => {
       const database = this.mainWindow.historyDatabase;
+      const tracker = this.mainWindow.historyTracker;
       if (!database) return null;
+
+      // Flush any pending interactions before fetching details
+      if (tracker) {
+        tracker.flushInteractions();
+      }
 
       return {
         interactions: database.getVisitInteractions(visitId),
