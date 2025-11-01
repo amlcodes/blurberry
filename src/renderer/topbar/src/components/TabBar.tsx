@@ -14,9 +14,11 @@ import {
   ChevronDown,
   ChevronRight,
   FolderPlus,
+  Loader2,
   Palette,
   Pencil,
   Plus,
+  Sparkles,
   Trash2,
   Ungroup,
   X,
@@ -251,6 +253,8 @@ export const TabBar: React.FC = () => {
     removeTabFromGroup,
     reorderGroups,
     updateTabPositions,
+    organizeTabs,
+    isOrganizing,
   } = useBrowser();
   const [draggedItem, setDraggedItem] = React.useState<DragItem | null>(null);
   const [dropZone, setDropZone] = React.useState<DropZone | null>(null);
@@ -509,6 +513,41 @@ export const TabBar: React.FC = () => {
 
       {/* Tabs */}
       <div className="flex-1 overflow-x-auto flex items-center">
+        {/* Organize Tabs Button */}
+        {ungroupedTabs.length >= 3 && (
+          <div className="px-1">
+            <ContextMenu>
+              <ContextMenuTrigger asChild>
+                <div
+                  className={cn(
+                    "flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer",
+                    "hover:bg-muted/30 transition-colors",
+                    isOrganizing && "opacity-50 cursor-not-allowed",
+                  )}
+                >
+                  {isOrganizing ? (
+                    <Loader2 className="size-3 animate-spin text-muted-foreground" />
+                  ) : (
+                    <Sparkles className="size-3 text-muted-foreground" />
+                  )}
+                  <span className="text-xs text-muted-foreground">
+                    Organize
+                  </span>
+                </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="w-48">
+                <ContextMenuItem
+                  onClick={organizeTabs}
+                  disabled={isOrganizing || ungroupedTabs.length < 3}
+                >
+                  <Sparkles className="size-4 mr-2" />
+                  Organize by Topic
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
+          </div>
+        )}
+
         {/* Ungrouped tabs */}
         {ungroupedTabs.map((tab) => (
           <TabItem

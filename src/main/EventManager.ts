@@ -104,6 +104,35 @@ export class EventManager {
       return this.mainWindow.updateTabPositions(orderedTabIds);
     });
 
+    ipcMain.handle("organize-tabs", async () => {
+      const ungroupedTabs = Array.from(this.mainWindow.allTabs.entries())
+        .filter(([, tab]) => !tab.groupId)
+        .map(([, tab]) => tab);
+
+      if (ungroupedTabs.length < 3) {
+        throw new Error("Need at least 3 ungrouped tabs to organize");
+      }
+
+      const tabsData = await Promise.all(
+        ungroupedTabs.map(async (tab) => {
+          let content = "";
+          try {
+            content = await tab.getTabText();
+          } catch (error) {
+            console.error(`Failed to get content for tab ${tab.id}:`, error);
+          }
+          return {
+            id: tab.id,
+            title: tab.title,
+            url: tab.url,
+            content,
+          };
+        }),
+      );
+
+      return await this.mainWindow.llmClient.organizeTabs(tabsData);
+    });
+
     // Navigation (for compatibility with existing code)
     ipcMain.handle("navigate-to", (_, url: string) => {
       if (this.mainWindow.activeTab) {

@@ -15,9 +15,11 @@ import {
   ChevronDown,
   ChevronRight,
   FolderPlus,
+  Loader2,
   Palette,
   Pencil,
   Plus,
+  Sparkles,
   Trash2,
   Ungroup,
   X,
@@ -245,6 +247,8 @@ export const VerticalTabBar: React.FC = () => {
     removeTabFromGroup,
     reorderGroups,
     updateTabPositions,
+    organizeTabs,
+    isOrganizing,
   } = useBrowser();
   const [draggedItem, setDraggedItem] = React.useState<DragItem | null>(null);
   const [dropZone, setDropZone] = React.useState<DropZone | null>(null);
@@ -500,6 +504,41 @@ export const VerticalTabBar: React.FC = () => {
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
       >
+        {/* Organize Tabs Button */}
+        {ungroupedTabs.length >= 3 && (
+          <div className="mb-2">
+            <ContextMenu>
+              <ContextMenuTrigger asChild>
+                <div
+                  className={cn(
+                    "w-full flex items-center gap-2 px-2 py-2 rounded-md cursor-pointer",
+                    "hover:bg-muted/30 transition-colors",
+                    isOrganizing && "opacity-50 cursor-not-allowed",
+                  )}
+                >
+                  {isOrganizing ? (
+                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                  ) : (
+                    <Sparkles className="size-4 text-muted-foreground" />
+                  )}
+                  <span className="text-xs text-muted-foreground">
+                    {isOrganizing ? "Organizing..." : "Organize Tabs"}
+                  </span>
+                </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="w-48">
+                <ContextMenuItem
+                  onClick={organizeTabs}
+                  disabled={isOrganizing || ungroupedTabs.length < 3}
+                >
+                  <Sparkles className="size-4 mr-2" />
+                  Organize by Topic
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
+          </div>
+        )}
+
         {/* Ungrouped tabs */}
         {ungroupedTabs.map((tab) => (
           <TabItem

@@ -132,6 +132,14 @@ export class SideBar {
     animate();
   }
 
+  toggleDevTools(): void {
+    if (this.webContentsView.webContents.isDevToolsOpened()) {
+      this.webContentsView.webContents.closeDevTools();
+    } else {
+      this.webContentsView.webContents.openDevTools({ mode: "detach" });
+    }
+  }
+
   destroy(): void {
     this.baseWindow.contentView.removeChildView(this.webContentsView);
   }

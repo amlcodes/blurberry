@@ -49,6 +49,13 @@ export interface BrowserAPI {
   getGroups: () => Promise<GroupInfo[]>;
   reorderGroups: (orderedGroupIds: string[]) => Promise<boolean>;
   updateTabPositions: (orderedTabIds: string[]) => Promise<boolean>;
+  organizeTabs: () => Promise<
+    Array<{
+      groupName: string;
+      colorId: string;
+      tabIds: string[];
+    }>
+  >;
 
   // Tab navigation
   navigateTab: (tabId: string, url: string) => Promise<void>;

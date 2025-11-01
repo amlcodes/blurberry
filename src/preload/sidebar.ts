@@ -32,6 +32,7 @@ const sideBarAPI = {
     electronAPI.ipcRenderer.invoke("reorder-groups", orderedGroupIds),
   updateTabPositions: (orderedTabIds: string[]) =>
     electronAPI.ipcRenderer.invoke("update-tab-positions", orderedTabIds),
+  organizeTabs: () => electronAPI.ipcRenderer.invoke("organize-tabs"),
 
   // Tab navigation
   navigateTab: (tabId: string, url: string) =>

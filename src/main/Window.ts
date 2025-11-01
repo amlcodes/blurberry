@@ -1,5 +1,6 @@
 import { BaseWindow, screen, shell } from "electron";
 import { Group, GROUP_COLORS, GroupColor } from "./Group";
+import type { LLMClient } from "./LLMClient";
 import { Panel } from "./Panel";
 import { SideBar } from "./SideBar";
 import { Tab } from "./Tab";
@@ -14,6 +15,7 @@ export class Window {
   private activeTabId: string | null = null;
   private tabCounter: number = 0;
   private groupCounter: number = 0;
+  public readonly llmClient: LLMClient;
   private _topBar: TopBar | null = null;
   private _sideBar: SideBar | null = null;
   private _panel: Panel;
@@ -45,8 +47,9 @@ export class Window {
     // Set panel layout mode to match initial layout
     this._panel.setLayoutMode(this._layoutMode);
 
-    // Set the window reference on the LLM client to avoid circular dependency
-    this._panel.client.setWindow(this);
+    // Initialize and expose LLM client
+    this.llmClient = this._panel.client;
+    this.llmClient.setWindow(this);
 
     // Create topbar after panel so it appears on top
     this._topBar = new TopBar(this._baseWindow);

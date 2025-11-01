@@ -27,9 +27,6 @@ export const AddressBar: React.FC = () => {
   const [editedUrl, setEditedUrl] = useState("");
   const [isFocused, setIsFocused] = useState(false);
 
-  // Debug log for panel visibility
-  console.log("[AddressBar] isPanelVisible:", isPanelVisible);
-
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
     if (!editedUrl.trim()) return;

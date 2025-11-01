@@ -119,4 +119,12 @@ export class TopBar {
 
     animate();
   }
+
+  toggleDevTools(): void {
+    if (this.webContentsView.webContents.isDevToolsOpened()) {
+      this.webContentsView.webContents.closeDevTools();
+    } else {
+      this.webContentsView.webContents.openDevTools({ mode: "detach" });
+    }
+  }
 }

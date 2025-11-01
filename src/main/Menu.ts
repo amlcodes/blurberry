@@ -63,6 +63,29 @@ export class AppMenu {
           },
           { type: "separator" },
           {
+            label: "Toggle Sidebar DevTools",
+            click: () => {
+              if (this.mainWindow.sideBar) {
+                this.mainWindow.sideBar.toggleDevTools();
+              }
+            },
+          },
+          {
+            label: "Toggle TopBar DevTools",
+            click: () => {
+              if (this.mainWindow.topBar) {
+                this.mainWindow.topBar.toggleDevTools();
+              }
+            },
+          },
+          {
+            label: "Toggle Panel DevTools",
+            click: () => {
+              this.mainWindow.panel.toggleDevTools();
+            },
+          },
+          { type: "separator" },
+          {
             label: "Toggle Panel",
             accelerator: "CmdOrCtrl+E",
             click: () => this.handleTogglePanel(),

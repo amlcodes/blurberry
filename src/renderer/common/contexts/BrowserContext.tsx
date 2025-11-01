@@ -33,6 +33,8 @@ interface BrowserContextType {
   refreshGroups: () => Promise<void>;
   reorderGroups: (orderedGroupIds: string[]) => Promise<void>;
   updateTabPositions: (orderedTabIds: string[]) => Promise<void>;
+  organizeTabs: () => Promise<void>;
+  isOrganizing: boolean;
 
   // Navigation
   navigateToUrl: (url: string) => Promise<void>;
@@ -70,6 +72,7 @@ export const BrowserProvider: React.FC<BrowserProviderProps> = ({
 }) => {
   const [tabs, setTabs] = useState<TabInfo[]>([]);
   const [groups, setGroups] = useState<GroupInfo[]>([]);
+  const [isOrganizing, setIsOrganizing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isPanelVisible, setIsPanelVisible] = useState(true);
 
@@ -255,7 +258,6 @@ export const BrowserProvider: React.FC<BrowserProviderProps> = ({
     api
       .getPanelVisibility()
       .then((isVisible) => {
-        console.log("[BrowserContext] Initial panel visibility:", isVisible);
         setIsPanelVisible(isVisible);
       })
       .catch(console.error);
@@ -352,10 +354,38 @@ export const BrowserProvider: React.FC<BrowserProviderProps> = ({
     [api, refreshTabs],
   );
 
+  const organizeTabs = useCallback(async () => {
+    setIsOrganizing(true);
+    try {
+      const suggestions = await api.organizeTabs();
+
+      for (const suggestion of suggestions) {
+        const newGroup = await createGroup(
+          suggestion.groupName,
+          suggestion.colorId,
+        );
+        if (newGroup) {
+          for (const tabId of suggestion.tabIds) {
+            await addTabToGroup(tabId, newGroup.id);
+          }
+        }
+      }
+
+      await refreshTabs();
+      await refreshGroups();
+    } catch (error) {
+      console.error("Failed to organize tabs:", error);
+      alert(
+        `Failed to organize tabs: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      setIsOrganizing(false);
+    }
+  }, [api, createGroup, addTabToGroup, refreshTabs, refreshGroups]);
+
   // Listen for panel visibility changes
   useEffect(() => {
     const cleanup = api.onPanelVisibilityChanged((isVisible) => {
-      console.log("[BrowserContext] Panel visibility changed to:", isVisible);
       setIsPanelVisible(isVisible);
     });
     return cleanup;
@@ -394,6 +424,8 @@ export const BrowserProvider: React.FC<BrowserProviderProps> = ({
     refreshGroups,
     reorderGroups,
     updateTabPositions,
+    organizeTabs,
+    isOrganizing,
     navigateToUrl,
     goBack,
     goForward,

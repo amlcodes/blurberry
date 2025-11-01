@@ -2,7 +2,9 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { openai } from "@ai-sdk/openai";
 import {
   convertToModelMessages,
+  embedMany,
   generateId,
+  generateText,
   streamText,
   type LanguageModel,
   type UIMessage,
@@ -33,6 +35,7 @@ export class LLMClient {
   private readonly provider: LLMProvider;
   private readonly modelName: string;
   private readonly model: LanguageModel | null;
+  private readonly embeddingModel: ReturnType<typeof openai.embedding> | null;
   private messages: UIMessage[] = [];
 
   constructor(webContents: WebContents) {
@@ -40,6 +43,7 @@ export class LLMClient {
     this.provider = this.getProvider();
     this.modelName = this.getModelName();
     this.model = this.initializeModel();
+    this.embeddingModel = this.initializeEmbeddingModel();
 
     this.logInitializationStatus();
   }
@@ -51,7 +55,6 @@ export class LLMClient {
 
   private getProvider(): LLMProvider {
     const provider = process.env.LLM_PROVIDER?.toLowerCase();
-    console.log("LLM_PROVIDER", provider);
     if (provider === "anthropic") return "anthropic";
     return "openai"; // Default to OpenAI
   }
@@ -72,6 +75,16 @@ export class LLMClient {
       default:
         return null;
     }
+  }
+
+  private initializeEmbeddingModel(): ReturnType<
+    typeof openai.embedding
+  > | null {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) return null;
+
+    // Always use OpenAI for embeddings as it's most reliable
+    return openai.embedding("text-embedding-3-small");
   }
 
   private getApiKey(): string | undefined {
@@ -163,6 +176,129 @@ export class LLMClient {
       console.error("Error in LLM request:", error);
       this.handleStreamError(error, request.messageId);
     }
+  }
+
+  async organizeTabs(
+    tabs: Array<{ id: string; title: string; url: string; content: string }>,
+  ): Promise<Array<{ groupName: string; colorId: string; tabIds: string[] }>> {
+    if (!this.model) {
+      throw new Error("LLM not configured");
+    }
+
+    if (!this.embeddingModel) {
+      throw new Error("Embedding model not configured");
+    }
+
+    // 1. Generate embeddings for each tab
+    const tabTexts = tabs.map((t) => {
+      try {
+        const hostname = new URL(t.url).hostname;
+        return `${t.title} | ${hostname} | ${t.content.substring(0, 1000)}`;
+      } catch {
+        return `${t.title} | ${t.content.substring(0, 1000)}`;
+      }
+    });
+
+    const { embeddings } = await embedMany({
+      model: this.embeddingModel,
+      values: tabTexts,
+    });
+
+    // 2. Calculate similarity matrix and cluster
+    const clusters = this.clusterBySimilarity(embeddings);
+
+    // 3. Use LLM to generate group names and colors
+    const prompt = this.buildOrganizationPrompt(clusters, tabs);
+    const response = await generateText({
+      model: this.model,
+      prompt,
+      temperature: 0.3,
+    });
+
+    // Parse JSON, removing markdown code blocks if present
+    let jsonText = response.text.trim();
+    if (jsonText.startsWith("```")) {
+      jsonText = jsonText.replace(/```json?\n?/g, "").replace(/```\n?$/g, "");
+    }
+
+    return JSON.parse(jsonText);
+  }
+
+  private cosineSimilarity(a: number[], b: number[]): number {
+    const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0);
+    const magnitudeA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
+    const magnitudeB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
+    return dotProduct / (magnitudeA * magnitudeB);
+  }
+
+  private clusterBySimilarity(embeddings: number[][]): number[][] {
+    const SIMILARITY_THRESHOLD = 0.7;
+    const visited = new Set<number>();
+    const clusters: number[][] = [];
+
+    for (let i = 0; i < embeddings.length; i++) {
+      if (visited.has(i)) continue;
+
+      const cluster = [i];
+      visited.add(i);
+
+      for (let j = i + 1; j < embeddings.length; j++) {
+        if (visited.has(j)) continue;
+
+        const similarity = this.cosineSimilarity(embeddings[i], embeddings[j]);
+        if (similarity > SIMILARITY_THRESHOLD) {
+          cluster.push(j);
+          visited.add(j);
+        }
+      }
+
+      clusters.push(cluster);
+    }
+
+    // Limit to reasonable number of clusters (3-7)
+    if (clusters.length > 7) {
+      // Merge smallest clusters
+      clusters.sort((a, b) => b.length - a.length);
+      return clusters.slice(0, 7);
+    }
+
+    return clusters;
+  }
+
+  private buildOrganizationPrompt(
+    clusters: number[][],
+    tabs: Array<{ id: string; title: string; url: string; content: string }>,
+  ): string {
+    let prompt = `Analyze these browser tabs and organize them into topic-based groups.\n\nTABS:\n`;
+
+    clusters.forEach((cluster, i) => {
+      prompt += `\nCluster ${i + 1}:\n`;
+      cluster.forEach((tabIndex) => {
+        const tab = tabs[tabIndex];
+        let hostname = "unknown";
+        try {
+          hostname = new URL(tab.url).hostname;
+        } catch {
+          // ignore
+        }
+        const snippet = tab.content.substring(0, 200).replace(/\n/g, " ");
+        prompt += `- Tab "${tab.title}" (${hostname})\n`;
+        prompt += `  ID: ${tab.id}\n`;
+        if (snippet) {
+          prompt += `  Content: ${snippet}...\n`;
+        }
+      });
+    });
+
+    prompt += `\nINSTRUCTIONS:
+1. Name each cluster with a concise 2-3 word topic name
+2. Assign an appropriate color from: gray, red, orange, yellow, green, cyan, blue, purple, pink
+3. Group tabs by their semantic similarity and topic
+
+Respond ONLY with a valid JSON array (no markdown code blocks):
+[{"groupName": "Topic Name", "colorId": "blue", "tabIds": ["tab-1", "tab-2"]}]`;
+
+    return prompt;
   }
 
   clearMessages(): void {
