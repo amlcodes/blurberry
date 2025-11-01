@@ -1,6 +1,6 @@
-import { ElectronAPI } from "@electron-toolkit/preload";
+import { TabInfo } from "./topbar.d";
 
-interface ChatRequest {
+export interface ChatRequest {
   message: string;
   context: {
     url: string | null;
@@ -10,25 +10,29 @@ interface ChatRequest {
   messageId: string;
 }
 
-interface ChatResponse {
+export interface ChatResponse {
   messageId: string;
   content: string;
   isComplete: boolean;
 }
 
-interface TabInfo {
+export interface Message {
   id: string;
-  title: string;
-  url: string;
-  isActive: boolean;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: number;
+  isStreaming?: boolean;
 }
 
-interface SidebarAPI {
+export interface SidebarAPI {
   // Chat functionality
-  sendChatMessage: (request: ChatRequest) => Promise<void>;
+  sendChatMessage: (request: Partial<ChatRequest>) => Promise<void>;
+  clearChat: () => Promise<void>;
   onChatResponse: (callback: (data: ChatResponse) => void) => void;
+  onMessagesUpdated: (callback: (messages: Message[]) => void) => void;
   removeChatResponseListener: () => void;
-
+  removeMessagesUpdatedListener: () => void;
+  getMessages: () => Promise<Message[]>;
   // Page content access
   getPageContent: () => Promise<string | null>;
   getPageText: () => Promise<string | null>;
@@ -36,12 +40,10 @@ interface SidebarAPI {
 
   // Tab information
   getActiveTabInfo: () => Promise<TabInfo | null>;
-}
 
-declare global {
-  interface Window {
-    electron: ElectronAPI;
-    sidebarAPI: SidebarAPI;
-  }
+  // Sidebar visibility
+  getSidebarVisibility: () => Promise<boolean>;
+  onSidebarVisibilityChanged: (
+    callback: (isVisible: boolean) => void,
+  ) => () => void;
 }
-

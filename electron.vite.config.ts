@@ -1,10 +1,20 @@
-import { resolve } from "path";
-import { defineConfig, externalizeDepsPlugin } from "electron-vite";
 import react from "@vitejs/plugin-react";
+import { defineConfig, externalizeDepsPlugin } from "electron-vite";
+import { resolve } from "path";
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [
+      externalizeDepsPlugin({
+        exclude: [
+          "zod",
+          "@ai-sdk/anthropic",
+          "@ai-sdk/openai",
+          "@ai-sdk/provider-utils",
+          "ai",
+        ],
+      }),
+    ],
   },
   preload: {
     plugins: [externalizeDepsPlugin()],
@@ -31,6 +41,7 @@ export default defineConfig({
       alias: {
         "@renderer": resolve("src/renderer/src"),
         "@common": resolve("src/renderer/common"),
+        "@preload": resolve("src/preload"),
       },
     },
     plugins: [react()],

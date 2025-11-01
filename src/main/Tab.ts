@@ -1,4 +1,4 @@
-import { NativeImage, WebContentsView } from "electron";
+import { NativeImage, WebContents, WebContentsView } from "electron";
 
 export class Tab {
   private webContentsView: WebContentsView;
@@ -26,7 +26,7 @@ export class Tab {
     this.setupEventListeners();
 
     // Load the initial URL
-    this.loadURL(url);
+    void this.loadURL(url);
   }
 
   private setupEventListeners(): void {
@@ -62,7 +62,7 @@ export class Tab {
     return this._isVisible;
   }
 
-  get webContents() {
+  get webContents(): WebContents {
     return this.webContentsView.webContents;
   }
 

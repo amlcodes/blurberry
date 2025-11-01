@@ -18,7 +18,8 @@
     "baseUrl": ".",
     "paths": {
       "@renderer/*": ["src/renderer/src/*"],
-      "@common/*": ["src/renderer/common/*"]
+      "@common/*": ["src/renderer/common/*"],
+      "@preload/*": ["src/preload/*"]
     }
   }
 }

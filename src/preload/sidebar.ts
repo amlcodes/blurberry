@@ -1,15 +1,6 @@
-import { contextBridge } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
-
-interface ChatRequest {
-  message: string;
-  context: {
-    url: string | null;
-    content: string | null;
-    text: string | null;
-  };
-  messageId: string;
-}
+import { contextBridge } from "electron";
+import type { ChatRequest } from "./sidebar.d";
 
 interface ChatResponse {
   messageId: string;
@@ -33,7 +24,7 @@ const sidebarAPI = {
 
   onMessagesUpdated: (callback: (messages: any[]) => void) => {
     electronAPI.ipcRenderer.on("chat-messages-updated", (_, messages) =>
-      callback(messages)
+      callback(messages),
     );
   },
 
@@ -52,6 +43,20 @@ const sidebarAPI = {
 
   // Tab information
   getActiveTabInfo: () => electronAPI.ipcRenderer.invoke("get-active-tab-info"),
+
+  // Sidebar visibility
+  getSidebarVisibility: () =>
+    electronAPI.ipcRenderer.invoke("get-sidebar-visibility"),
+  onSidebarVisibilityChanged: (callback: (isVisible: boolean) => void) => {
+    electronAPI.ipcRenderer.on(
+      "sidebar-visibility-changed",
+      (_, isVisible: boolean) => callback(isVisible),
+    );
+    // Return cleanup function
+    return () => {
+      electronAPI.ipcRenderer.removeAllListeners("sidebar-visibility-changed");
+    };
+  },
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to
@@ -65,8 +70,6 @@ if (process.contextIsolated) {
     console.error(error);
   }
 } else {
-  // @ts-ignore (define in dts)
   window.electron = electronAPI;
-  // @ts-ignore (define in dts)
   window.sidebarAPI = sidebarAPI;
 }
