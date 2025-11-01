@@ -1,11 +1,16 @@
 import { useDarkMode } from "@common/hooks/useDarkMode";
+import { Clock, MessageSquare } from "lucide-react";
 import { motion } from "motion/react";
 import React, { useEffect, useState } from "react";
 import { Chat } from "./components/Chat";
+import { History } from "./components/History";
 import { ChatProvider } from "./contexts/ChatContext";
+
+type PanelView = "chat" | "history";
 
 const PanelContent: React.FC<{ isVisible: boolean }> = ({ isVisible }) => {
   const { isDarkMode } = useDarkMode();
+  const [currentView, setCurrentView] = useState<PanelView>("chat");
 
   // Apply dark mode class to the document
   useEffect(() => {
@@ -31,7 +36,34 @@ const PanelContent: React.FC<{ isVisible: boolean }> = ({ isVisible }) => {
         mass: 1,
       }}
     >
-      <Chat />
+      {/* View switcher */}
+      <div className="flex items-center border-b border-border bg-background/50">
+        <button
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
+            currentView === "chat"
+              ? "text-foreground bg-muted/50"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+          }`}
+          onClick={() => setCurrentView("chat")}
+        >
+          <MessageSquare className="size-4" />
+          Chat
+        </button>
+        <button
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
+            currentView === "history"
+              ? "text-foreground bg-muted/50"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+          }`}
+          onClick={() => setCurrentView("history")}
+        >
+          <Clock className="size-4" />
+          History
+        </button>
+      </div>
+
+      {/* View content */}
+      {currentView === "chat" ? <Chat /> : <History />}
     </motion.div>
   );
 };

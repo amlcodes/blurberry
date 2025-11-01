@@ -24,6 +24,7 @@ export default defineConfig({
           topbar: resolve(__dirname, "src/preload/topbar.ts"),
           sidebar: resolve(__dirname, "src/preload/sidebar.ts"),
           panel: resolve(__dirname, "src/preload/panel.ts"),
+          tab: resolve(__dirname, "src/preload/tab.ts"),
         },
       },
     },
