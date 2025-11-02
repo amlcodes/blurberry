@@ -1,15 +1,15 @@
-import { Button } from "@common/components/Button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@common/components/ui/dropdown-menu";
 import type {
   HistoryPageVisit,
   HistoryVisitDetails,
   WorkflowAnalysis,
 } from "@preload/panel.d";
+import { Button } from "@renderer/components/ui/Button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@renderer/components/ui/dropdown-menu";
 import {
   ChevronDown,
   ChevronRight,

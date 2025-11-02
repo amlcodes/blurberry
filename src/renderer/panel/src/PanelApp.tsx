@@ -1,4 +1,4 @@
-import { useDarkMode } from "@common/hooks/useDarkMode";
+import { useDarkMode } from "@renderer/hooks/useDarkMode";
 import { Clock, MessageSquare } from "lucide-react";
 import { motion } from "motion/react";
 import React, { useEffect, useState } from "react";

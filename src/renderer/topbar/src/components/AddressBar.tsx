@@ -1,8 +1,9 @@
-import { DarkModeToggle } from "@common/components/DarkModeToggle";
-import { Favicon } from "@common/components/Favicon";
-import { ToolBarButton } from "@common/components/ToolBarButton";
-import { useBrowser } from "@common/contexts/BrowserContext";
-import { cn, getFavicon } from "@common/lib/utils";
+import { cn, getFavicon } from "@renderer/lib/utils";
+
+import { DarkModeToggle } from "@renderer/components/DarkModeToggle";
+import { Favicon } from "@renderer/components/Favicon";
+import { ToolBarButton } from "@renderer/components/ToolBarButton";
+import { useBrowser } from "@renderer/contexts/BrowserContext";
 import {
   ArrowLeft,
   ArrowRight,

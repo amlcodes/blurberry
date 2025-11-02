@@ -5,7 +5,11 @@
     { "path": "./tsconfig.web.json" }
   ],
   "compilerOptions": {
-    "moduleResolution": "bundler",
-    "module": "esnext"
+    "composite": true,
+    "types": ["electron-vite/node"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/renderer/src/*"]
+    }
   }
 }

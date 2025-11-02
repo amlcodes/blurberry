@@ -1,4 +1,5 @@
-import { cn } from "@common/lib/utils";
+import { cn } from "@renderer/lib/utils";
+
 import type { GroupColor, GroupInfo } from "@preload/global.d";
 import { Check, X } from "lucide-react";
 import React, { useEffect, useState } from "react";

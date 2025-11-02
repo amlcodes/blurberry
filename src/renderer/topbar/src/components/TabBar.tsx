@@ -1,21 +1,22 @@
-import { Favicon } from "@common/components/Favicon";
-import { GroupModal } from "@common/components/GroupModal";
+import { cn, getFavicon } from "@renderer/lib/utils";
+
+import type { GroupInfo } from "@preload/global.d";
+import { Favicon } from "@renderer/components/Favicon";
+import { GroupModal } from "@renderer/components/GroupModal";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
-} from "@common/components/ui/context-menu";
+} from "@renderer/components/ui/context-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@common/components/ui/dropdown-menu";
-import { useBrowser } from "@common/contexts/BrowserContext";
-import { cn, getFavicon } from "@common/lib/utils";
-import type { GroupInfo } from "@preload/global.d";
+} from "@renderer/components/ui/dropdown-menu";
+import { useBrowser } from "@renderer/contexts/BrowserContext";
 import {
   ChevronDown,
   ChevronRight,

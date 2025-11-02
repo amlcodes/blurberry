@@ -1,6 +1,6 @@
-import { Favicon } from "@common/components/Favicon";
-import { useBrowser } from "@common/contexts/BrowserContext";
-import { cn, getFavicon } from "@common/lib/utils";
+import { Favicon } from "@renderer/components/Favicon";
+import { useBrowser } from "@renderer/contexts/BrowserContext";
+import { cn, getFavicon } from "@renderer/lib/utils";
 import { RefreshCw, X } from "lucide-react";
 import React, { useState } from "react";
 

@@ -1,5 +1,5 @@
-import { ToolBarButton } from "@common/components/ToolBarButton";
-import { useBrowser } from "@common/contexts/BrowserContext";
+import { ToolBarButton } from "@renderer/components/ToolBarButton";
+import { useBrowser } from "@renderer/contexts/BrowserContext";
 import {
   ArrowLeft,
   ArrowRight,

@@ -1,4 +1,4 @@
-import { BrowserProvider } from "@common/contexts/BrowserContext";
+import { BrowserProvider } from "@renderer/contexts/BrowserContext";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { SidebarToolbar } from "./components/SidebarToolbar";
 import { VerticalTabBar } from "./components/VerticalTabBar";
