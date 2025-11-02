@@ -1,9 +1,16 @@
-import { Button } from "@common/components/Button";
 import type {
   HistoryPageVisit,
   HistoryVisitDetails,
   WorkflowAnalysis,
 } from "@preload/panel.d";
+import { Button } from "@renderer/components/ui/button";
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@renderer/components/ui/dropdown-menu";
 import {
   ChevronDown,
   ChevronRight,
@@ -134,7 +141,7 @@ const VisitItem: React.FC<{
         </button>
 
         {/* Favicon or placeholder */}
-        <div className="size-4 mt-1 flex-shrink-0">
+        <div className="size-4 mt-1 shrink-0">
           {visit.favicon_url ? (
             <img
               src={visit.favicon_url}
@@ -161,7 +168,7 @@ const VisitItem: React.FC<{
               </p>
             </div>
             {interactionCount > 0 && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
                 <MousePointer className="size-3" />
                 <span>{interactionCount}</span>
               </div>
@@ -443,16 +450,23 @@ export const History: React.FC<HistoryProps> = ({ onExportWorkflow }) => {
     }
   };
 
-  const handleClearOldHistory = async (): Promise<void> => {
-    const confirmed = confirm(
-      "Clear history older than 30 days? This cannot be undone.",
-    );
+  const handleClearHistory = async (mode: "all" | "older"): Promise<void> => {
+    const message =
+      mode === "all"
+        ? "Clear all history? This cannot be undone."
+        : "Clear history older than 30 days? This cannot be undone.";
+
+    const confirmed = confirm(message);
     if (confirmed) {
       try {
-        await window.panelAPI.historyClearOld(30);
+        if (mode === "all") {
+          await window.panelAPI.historyClearAll();
+        } else {
+          await window.panelAPI.historyClearOld(30);
+        }
         loadHistory();
       } catch (error) {
-        console.error("Failed to clear old history:", error);
+        console.error(`Failed to clear history (mode: ${mode}):`, error);
       }
     }
   };
@@ -511,14 +525,24 @@ export const History: React.FC<HistoryProps> = ({ onExportWorkflow }) => {
                 Export Workflow
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClearOldHistory}
-              title="Clear old history"
-            >
-              <Trash2 className="size-4" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" title="Clear history">
+                  <Trash2 className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => handleClearHistory("older")}>
+                  Clear older than 30 days
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => handleClearHistory("all")}
+                >
+                  Clear all history
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -541,7 +565,7 @@ export const History: React.FC<HistoryProps> = ({ onExportWorkflow }) => {
       <div className="flex-1 overflow-y-auto">
         {/* Workflow Analysis Results */}
         {workflowAnalysis && (
-          <div className="border-b border-border bg-gradient-to-br from-primary/5 to-primary/10 p-4">
+          <div className="border-b border-border bg-linear-to-br from-primary/5 to-primary/10 p-4">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="size-5 text-primary" />

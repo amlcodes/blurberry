@@ -1,11 +1,14 @@
 {
   "extends": "@electron-toolkit/tsconfig/tsconfig.web.json",
   "include": [
-    "src/renderer/common/**/*",
     "src/renderer/panel/**/*",
     "src/renderer/topbar/**/*",
     "src/renderer/sidebar/**/*",
-    "src/preload/global.d.ts"
+    "src/preload/global.d.ts",
+    "src/renderer/src/components",
+    "src/renderer/src/hooks",
+    "src/renderer/src/lib/utils.ts",
+    "src/renderer/src/contexts"
   ],
   "compilerOptions": {
     // "composite": true,
@@ -13,8 +16,8 @@
     "baseUrl": ".",
     "paths": {
       "@renderer/*": ["src/renderer/src/*"],
-      "@common/*": ["src/renderer/common/*"],
-      "@preload/*": ["src/preload/*"]
+      "@preload/*": ["src/preload/*"],
+      "@/*": ["./src/*"]
     }
   }
 }

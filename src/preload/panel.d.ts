@@ -148,11 +148,13 @@ export interface PanelAPI {
     startTime: number,
     endTime: number,
   ) => Promise<HistoryPageVisit[]>;
-  historySearch: (query: string, limit?: number) => Promise<HistoryPageVisit[]>;
+  historySearch: (query: string, limit: number) => Promise<HistoryPageVisit[]>;
   historyGetVisitDetails: (
     visitId: number,
   ) => Promise<HistoryVisitDetails | null>;
   historyGetInteractionCount: (visitId: number) => Promise<number>;
+  historyClearOld: (days: number) => Promise<void>;
+  historyClearAll: () => Promise<void>;
   historyGetSessions: () => Promise<HistorySession[]>;
   historyGetSession: (sessionId: number) => Promise<{
     session: HistorySession;
@@ -163,7 +165,6 @@ export interface PanelAPI {
   historyGetStats: () => Promise<{ visitCount: number }>;
   historySettingsGet: () => Promise<HistorySettings | null>;
   historySettingsUpdate: (config: Partial<HistorySettings>) => Promise<boolean>;
-  historyClearOld: (days: number) => Promise<boolean>;
 
   // Workflow API
   workflowAnalyzeSession: (

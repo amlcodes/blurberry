@@ -1,4 +1,4 @@
-import { BrowserProvider } from "@common/contexts/BrowserContext";
+import { BrowserProvider } from "@renderer/contexts/BrowserContext";
 import React from "react";
 import { AddressBar } from "./components/AddressBar";
 import { TabBar } from "./components/TabBar";

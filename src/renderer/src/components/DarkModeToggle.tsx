@@ -1,4 +1,4 @@
-import { useDarkMode } from "@common/hooks/useDarkMode";
+import { useDarkMode } from "@renderer/hooks/useDarkMode";
 import { Moon, Sun } from "lucide-react";
 import React from "react";
 import { ToolBarButton } from "./ToolBarButton";

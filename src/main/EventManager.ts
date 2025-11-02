@@ -534,6 +534,13 @@ export class EventManager {
       return true;
     });
 
+    ipcMain.handle("history-clear-all", () => {
+      const database = this.mainWindow.historyDatabase;
+      if (!database) return false;
+      database.deleteAllHistory();
+      return true;
+    });
+
     // Workflow analysis
     ipcMain.handle("workflow-analyze-session", async (_, sessionId: number) => {
       const analyzer = this.mainWindow.workflowAnalyzer;

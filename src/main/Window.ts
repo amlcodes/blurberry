@@ -59,6 +59,9 @@ export class Window {
     this.workflowAnalyzer = new WorkflowAnalyzer(this.historyDatabase);
     this.vectorStore = new VectorStore();
 
+    // Wire up vector store to database for cleanup operations
+    this.historyDatabase.setVectorStore(this.vectorStore);
+
     // Initialize with topbar layout by default
     // Create panel first so it's behind the topbar/sidebar
     this._panel = new Panel(this._baseWindow);
