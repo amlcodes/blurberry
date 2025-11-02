@@ -1,5 +1,5 @@
 import { app } from "electron";
-import { existsSync } from "fs";
+import { existsSync, unlinkSync } from "fs";
 import { HierarchicalNSW } from "hnswlib-node";
 import { join } from "path";
 
@@ -59,10 +59,16 @@ export class VectorStore {
 
   clear(): void {
     try {
-      // Reinitialize the index (effectively clearing it)
+      // Delete the index file if it exists
+      if (existsSync(this.indexPath)) {
+        unlinkSync(this.indexPath);
+        console.log("[VectorStore] Deleted vector index file");
+      }
+
+      // Reinitialize with a fresh empty index
+      this.index = new HierarchicalNSW("cosine", this.dimension);
       this.index.initIndex(10000);
-      this.index.writeIndex(this.indexPath);
-      console.log("[VectorStore] Cleared vector index");
+      console.log("[VectorStore] Cleared and reinitialized vector index");
     } catch (error) {
       console.error("[VectorStore] Failed to clear index:", error);
     }
@@ -71,7 +77,7 @@ export class VectorStore {
   getCurrentCount(): number {
     try {
       return this.index.getCurrentCount();
-    } catch (error) {
+    } catch {
       return 0;
     }
   }
