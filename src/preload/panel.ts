@@ -61,7 +61,7 @@ const panelAPI = {
       startTime,
       endTime,
     ),
-  historySearch: (query: string, limit?: number) =>
+  historySearch: (query: string, limit = 50) =>
     electronAPI.ipcRenderer.invoke("history-search", query, limit),
   historyGetVisitDetails: (visitId: number) =>
     electronAPI.ipcRenderer.invoke("history-get-visit-details", visitId),
@@ -80,6 +80,7 @@ const panelAPI = {
     electronAPI.ipcRenderer.invoke("history-settings-update", config),
   historyClearOld: (days: number) =>
     electronAPI.ipcRenderer.invoke("history-clear-old", days),
+  historyClearAll: () => electronAPI.ipcRenderer.invoke("history-clear-all"),
 
   // Workflow API
   workflowAnalyzeSession: (sessionId: number) =>

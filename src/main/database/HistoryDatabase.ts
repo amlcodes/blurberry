@@ -2,6 +2,7 @@ import { app } from "electron";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import initSqlJs, { Database as SqlJsDatabase } from "sql.js";
+import type { VectorStore } from "../VectorStore";
 
 export interface Session {
   id: number;
@@ -74,11 +75,16 @@ export class HistoryDatabase {
   private currentSessionId: number | null = null;
   private saveTimer: NodeJS.Timeout | null = null;
   private initPromise: Promise<void>;
+  private vectorStore: VectorStore | null = null;
 
   constructor() {
     const userDataPath = app.getPath("userData");
     this.dbPath = join(userDataPath, "browsing-history.db");
     this.initPromise = this.initializeDatabase();
+  }
+
+  setVectorStore(vectorStore: VectorStore): void {
+    this.vectorStore = vectorStore;
   }
 
   private async initializeDatabase(): Promise<void> {
@@ -567,6 +573,7 @@ export class HistoryDatabase {
       "DELETE FROM screenshots WHERE visit_id IN (SELECT id FROM page_visits WHERE timestamp < ?)",
       "DELETE FROM dom_snapshots WHERE visit_id IN (SELECT id FROM page_visits WHERE timestamp < ?)",
       "DELETE FROM interactions WHERE visit_id IN (SELECT id FROM page_visits WHERE timestamp < ?)",
+      "DELETE FROM embeddings WHERE visit_id IN (SELECT id FROM page_visits WHERE timestamp < ?)",
       "DELETE FROM page_visits WHERE timestamp < ?",
       "DELETE FROM tab_events WHERE timestamp < ?",
       "DELETE FROM sessions WHERE start_time < ?",
@@ -575,6 +582,41 @@ export class HistoryDatabase {
     for (const sql of stmts) {
       this.db.run(sql, [cutoffTime]);
     }
+
+    // Clear vector store since we can't easily delete individual vectors
+    // They will be rebuilt as the user browses
+    if (this.vectorStore) {
+      this.vectorStore.clear();
+    }
+
+    this.save();
+  }
+
+  deleteAllHistory(): void {
+    if (!this.db) return;
+
+    // Delete in order to respect foreign key constraints
+    const tables = [
+      "scroll_events",
+      "screenshots",
+      "dom_snapshots",
+      "interactions",
+      "embeddings",
+      "page_visits",
+      "tab_events",
+      "workflow_cache",
+      "sessions",
+    ];
+
+    for (const table of tables) {
+      this.db.run(`DELETE FROM ${table}`);
+    }
+
+    // Clear vector store
+    if (this.vectorStore) {
+      this.vectorStore.clear();
+    }
+
     this.save();
   }
 
@@ -646,6 +688,7 @@ export class HistoryDatabase {
       [visitId],
     );
     const visit = this.rowToObject<{ title: string; url: string }>(visitResult);
+    console.log(`[HistoryDatabase] getVisitContent for ID ${visitId}:`, visit);
 
     // Get latest DOM snapshot
     const snapshotResult = this.db.exec(

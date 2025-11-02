@@ -7,6 +7,12 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@common/components/ui/context-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@common/components/ui/dropdown-menu";
 import { useBrowser } from "@common/contexts/BrowserContext";
 import { cn, getFavicon } from "@common/lib/utils";
 import type { GroupInfo } from "@preload/global.d";
@@ -516,35 +522,36 @@ export const TabBar: React.FC = () => {
         {/* Organize Tabs Button */}
         {ungroupedTabs.length >= 3 && (
           <div className="px-1">
-            <ContextMenu>
-              <ContextMenuTrigger asChild>
-                <div
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
                   className={cn(
-                    "flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer",
-                    "hover:bg-muted/30 transition-colors",
+                    "w-full flex items-center gap-2 px-2 py-2 rounded-md cursor-pointer",
+                    "hover:bg-muted/30 transition-colors app-region-no-drag",
                     isOrganizing && "opacity-50 cursor-not-allowed",
                   )}
+                  disabled={isOrganizing}
                 >
                   {isOrganizing ? (
-                    <Loader2 className="size-3 animate-spin text-muted-foreground" />
+                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
                   ) : (
-                    <Sparkles className="size-3 text-muted-foreground" />
+                    <Sparkles className="size-4 text-muted-foreground" />
                   )}
                   <span className="text-xs text-muted-foreground">
-                    Organize
+                    {isOrganizing ? "Organizing..." : "Organize Tabs"}
                   </span>
-                </div>
-              </ContextMenuTrigger>
-              <ContextMenuContent className="w-48">
-                <ContextMenuItem
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-48">
+                <DropdownMenuItem
                   onClick={organizeTabs}
                   disabled={isOrganizing || ungroupedTabs.length < 3}
                 >
                   <Sparkles className="size-4 mr-2" />
                   Organize by Topic
-                </ContextMenuItem>
-              </ContextMenuContent>
-            </ContextMenu>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
 

@@ -361,12 +361,17 @@ Respond ONLY with a valid JSON array (no markdown code blocks):
 
       // Search vector store
       const visitIds = this.vectorStore.search(embeddings[0], 3);
+      console.log(`[LLMClient] Vector search returned visit IDs:`, visitIds);
 
       // Get page details from database
       const database = this.window.historyDatabase;
       const matches = visitIds
         .map((visitId) => {
           const visit = database.getVisitContent(visitId);
+          console.log(
+            `[LLMClient] Fetching visit ${visitId}:`,
+            visit ? "found" : "not found",
+          );
           if (!visit) return null;
 
           // Get timestamp
@@ -386,6 +391,7 @@ Respond ONLY with a valid JSON array (no markdown code blocks):
         timestamp: number;
       }>;
 
+      console.log(`[LLMClient] Returning ${matches.length} matches`);
       return { matches };
     } catch (error) {
       console.error("Error searching history:", error);

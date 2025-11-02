@@ -21,7 +21,10 @@ export class VectorStore {
         this.index.readIndex(this.indexPath);
         console.log("[VectorStore] Loaded existing vector index");
       } catch (error) {
-        console.error("[VectorStore] Failed to load index, creating new:", error);
+        console.error(
+          "[VectorStore] Failed to load index, creating new:",
+          error,
+        );
         this.index.initIndex(10000); // max 10k pages
       }
     } else {
@@ -36,7 +39,10 @@ export class VectorStore {
       this.index.writeIndex(this.indexPath);
       console.log(`[VectorStore] Added vector for visit ${visitId}`);
     } catch (error) {
-      console.error(`[VectorStore] Failed to add vector for visit ${visitId}:`, error);
+      console.error(
+        `[VectorStore] Failed to add vector for visit ${visitId}:`,
+        error,
+      );
     }
   }
 
@@ -50,5 +56,23 @@ export class VectorStore {
       return [];
     }
   }
-}
 
+  clear(): void {
+    try {
+      // Reinitialize the index (effectively clearing it)
+      this.index.initIndex(10000);
+      this.index.writeIndex(this.indexPath);
+      console.log("[VectorStore] Cleared vector index");
+    } catch (error) {
+      console.error("[VectorStore] Failed to clear index:", error);
+    }
+  }
+
+  getCurrentCount(): number {
+    try {
+      return this.index.getCurrentCount();
+    } catch (error) {
+      return 0;
+    }
+  }
+}
