@@ -1,4 +1,4 @@
-import { Button } from "@renderer/components/ui/Button";
+import { Button } from "@renderer/components/ui/button";
 import { cn } from "@renderer/lib/utils";
 import type { UIMessage } from "ai";
 import { ArrowUp, Plus } from "lucide-react";

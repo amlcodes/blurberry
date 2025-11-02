@@ -3,7 +3,8 @@ import type {
   HistoryVisitDetails,
   WorkflowAnalysis,
 } from "@preload/panel.d";
-import { Button } from "@renderer/components/ui/Button";
+import { Button } from "@renderer/components/ui/button";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -535,7 +536,7 @@ export const History: React.FC<HistoryProps> = ({ onExportWorkflow }) => {
                   Clear older than 30 days
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  danger
+                  variant="destructive"
                   onClick={() => handleClearHistory("all")}
                 >
                   Clear all history

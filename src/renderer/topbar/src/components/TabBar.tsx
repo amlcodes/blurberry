@@ -501,7 +501,10 @@ export const TabBar: React.FC = () => {
           Change Color
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem onClick={() => void deleteGroup(group.id)} danger>
+        <ContextMenuItem
+          onClick={() => void deleteGroup(group.id)}
+          variant="destructive"
+        >
           <Trash2 className="size-4 mr-2" />
           Delete Group
         </ContextMenuItem>
